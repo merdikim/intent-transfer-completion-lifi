@@ -18,12 +18,9 @@ export async function resolveRecipient(recipient, config) {
     if (!recipient.toLowerCase().endsWith(".eth")) {
         throw new RecipientResolutionError(recipient);
     }
-    if (!config.ensRpcUrl) {
-        throw new RecipientResolutionError(`${recipient} (ENS_RPC_URL is required to resolve ENS names)`);
-    }
     const client = createPublicClient({
         chain: SUPPORTED_CHAINS.ethereum.chain,
-        transport: http(config.ensRpcUrl)
+        transport: http()
     });
     const resolvedAddress = await client.getEnsAddress({ name: recipient });
     if (!resolvedAddress) {

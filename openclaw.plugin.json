@@ -24,10 +24,6 @@
         "description": "Integrator name sent to LI.FI.",
         "default": "openclaw-intent-transfer"
       },
-      "ensRpcUrl": {
-        "type": "string",
-        "description": "Ethereum mainnet RPC URL used for ENS resolution."
-      },
       "defaultSlippageBps": {
         "type": "integer",
         "minimum": 10,

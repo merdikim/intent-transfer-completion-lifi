@@ -156,7 +156,6 @@ export interface PluginConfig {
     lifiBaseUrl: string;
     lifiApiKey?: string;
     integrator: string;
-    ensRpcUrl?: string;
     defaultSlippageBps: number;
     rpcUrls: Partial<Record<ChainKey, string>>;
     minNativeReserve: Partial<Record<ChainKey, string>>;

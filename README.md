@@ -40,7 +40,6 @@ npm install
 
 - per-chain RPC URLs
 - optional `lifiApiKey`
-- optional `ensRpcUrl` for ENS recipients
 
 3. Connect a local wallet in OpenClaw for live execution. The plugin discovers that wallet from native tool context and returns an error if none is available.
 
@@ -61,5 +60,5 @@ npm test
 - All executable logic lives in the TypeScript plugin.
 - The bundled skill contains routing guidance only.
 - Live execution requires a funded local OpenClaw wallet.
-- ENS resolution uses the configured `ensRpcUrl`.
+- ENS resolution uses viem on Ethereum mainnet.
 - The runtime does not load configuration from `.env`.

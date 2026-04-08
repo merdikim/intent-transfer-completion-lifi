@@ -102,7 +102,6 @@ export const pluginConfigSchema = {
         lifiApiKey: { type: "string" },
         lifiBaseUrl: { type: "string", default: "https://li.quest/v1" },
         integrator: { type: "string", default: "openclaw-intent-transfer" },
-        ensRpcUrl: { type: "string" },
         defaultSlippageBps: { type: "integer", default: 100 },
         rpcUrls: {
             type: "object",
@@ -130,7 +129,6 @@ const DEFAULT_CONFIG = {
     lifiBaseUrl: "https://li.quest/v1",
     lifiApiKey: undefined,
     integrator: "openclaw-intent-transfer",
-    ensRpcUrl: undefined,
     defaultSlippageBps: 100,
     rpcUrls: {},
     minNativeReserve: {
