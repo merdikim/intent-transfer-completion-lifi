@@ -1,0 +1,53 @@
+import type { Address } from "viem";
+import type { LifiToken, PluginConfig, RoutePlan, RouteQuote } from "./types.js";
+export interface LifiClient {
+    getTokens(chainId: number): Promise<LifiToken[]>;
+    getQuote(params: {
+        fromChain: number;
+        toChain: number;
+        fromToken: Address;
+        toToken: Address;
+        fromAddress: Address;
+        fromAmount: bigint;
+        toAddress?: Address;
+        slippageBps?: number;
+    }): Promise<RouteQuote>;
+    getRoutes(params: {
+        fromChain: number;
+        toChain: number;
+        fromToken: Address;
+        toToken: Address;
+        fromAddress: Address;
+        fromAmount: bigint;
+        toAddress?: Address;
+        slippageBps?: number;
+    }): Promise<RoutePlan>;
+    getStatus(params: Record<string, string>): Promise<unknown>;
+}
+export declare class HttpLifiClient implements LifiClient {
+    private readonly config;
+    constructor(config: PluginConfig);
+    getTokens(chainId: number): Promise<LifiToken[]>;
+    getQuote(params: {
+        fromChain: number;
+        toChain: number;
+        fromToken: Address;
+        toToken: Address;
+        fromAddress: Address;
+        fromAmount: bigint;
+        toAddress?: Address;
+        slippageBps?: number;
+    }): Promise<RouteQuote>;
+    getRoutes(params: {
+        fromChain: number;
+        toChain: number;
+        fromToken: Address;
+        toToken: Address;
+        fromAddress: Address;
+        fromAmount: bigint;
+        toAddress?: Address;
+        slippageBps?: number;
+    }): Promise<RoutePlan>;
+    getStatus(params: Record<string, string>): Promise<unknown>;
+    private request;
+}

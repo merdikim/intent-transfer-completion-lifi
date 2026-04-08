@@ -1,0 +1,123 @@
+{
+  "id": "intent-transfer-completion-lifi",
+  "name": "Intent Transfer Completion via LI.FI",
+  "version": "1.0.0",
+  "description": "Completes natural-language token transfer intents by routing through LI.FI when the requested token is unavailable on the requested chain.",
+  "entry": "./dist/index.js",
+  "bundledSkills": [
+    "./skills/intent_transfer_completion_lifi"
+  ],
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "lifiApiKey": {
+        "type": "string",
+        "description": "Optional LI.FI API key."
+      },
+      "lifiBaseUrl": {
+        "type": "string",
+        "description": "Base URL for the LI.FI API.",
+        "default": "https://li.quest/v1"
+      },
+      "integrator": {
+        "type": "string",
+        "description": "Integrator name sent to LI.FI.",
+        "default": "openclaw-intent-transfer"
+      },
+      "privateKey": {
+        "type": "string",
+        "description": "Signer private key used for live execution."
+      },
+      "ensRpcUrl": {
+        "type": "string",
+        "description": "Ethereum mainnet RPC URL used for ENS resolution."
+      },
+      "defaultSlippageBps": {
+        "type": "integer",
+        "minimum": 10,
+        "maximum": 1000,
+        "default": 100
+      },
+      "simulateOnly": {
+        "type": "boolean",
+        "default": false
+      },
+      "rpcUrls": {
+        "type": "object",
+        "description": "Per-chain RPC URLs.",
+        "properties": {
+          "ethereum": {
+            "type": "string"
+          },
+          "base": {
+            "type": "string"
+          },
+          "arbitrum": {
+            "type": "string"
+          },
+          "optimism": {
+            "type": "string"
+          },
+          "polygon": {
+            "type": "string"
+          }
+        }
+      },
+      "minNativeReserve": {
+        "type": "object",
+        "description": "Minimum native-token reserve to preserve for gas on each chain.",
+        "properties": {
+          "ethereum": {
+            "type": "string",
+            "default": "0.01"
+          },
+          "base": {
+            "type": "string",
+            "default": "0.002"
+          },
+          "arbitrum": {
+            "type": "string",
+            "default": "0.002"
+          },
+          "optimism": {
+            "type": "string",
+            "default": "0.002"
+          },
+          "polygon": {
+            "type": "string",
+            "default": "1"
+          }
+        }
+      }
+    },
+    "required": [
+      "rpcUrls"
+    ]
+  },
+  "tools": [
+    {
+      "name": "complete_transfer_intent",
+      "description": "Parse a natural-language transfer intent, source missing funds through LI.FI if needed, and complete the final transfer.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "intent": {
+            "type": "string",
+            "description": "Natural-language transfer request such as 'send 50usdc to merkim.eth on base'."
+          },
+          "simulateOnly": {
+            "type": "boolean",
+            "description": "When true, plans and validates without signing transactions."
+          },
+          "fromAddress": {
+            "type": "string",
+            "description": "Optional wallet address override for simulations."
+          }
+        },
+        "required": [
+          "intent"
+        ]
+      }
+    }
+  ]
+}
