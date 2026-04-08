@@ -24,10 +24,6 @@
         "description": "Integrator name sent to LI.FI.",
         "default": "openclaw-intent-transfer"
       },
-      "privateKey": {
-        "type": "string",
-        "description": "Signer private key used for live execution."
-      },
       "ensRpcUrl": {
         "type": "string",
         "description": "Ethereum mainnet RPC URL used for ENS resolution."
@@ -37,10 +33,6 @@
         "minimum": 10,
         "maximum": 1000,
         "default": 100
-      },
-      "simulateOnly": {
-        "type": "boolean",
-        "default": false
       },
       "rpcUrls": {
         "type": "object",
@@ -105,13 +97,9 @@
             "type": "string",
             "description": "Natural-language transfer request such as 'send 50usdc to merkim.eth on base'."
           },
-          "simulateOnly": {
-            "type": "boolean",
-            "description": "When true, plans and validates without signing transactions."
-          },
           "fromAddress": {
             "type": "string",
-            "description": "Optional wallet address override for simulations."
+            "description": "Optional wallet address override."
           }
         },
         "required": [

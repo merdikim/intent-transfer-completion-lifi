@@ -17,19 +17,12 @@ export declare const pluginConfigSchema: {
             readonly type: "string";
             readonly default: "openclaw-intent-transfer";
         };
-        readonly privateKey: {
-            readonly type: "string";
-        };
         readonly ensRpcUrl: {
             readonly type: "string";
         };
         readonly defaultSlippageBps: {
             readonly type: "integer";
             readonly default: 100;
-        };
-        readonly simulateOnly: {
-            readonly type: "boolean";
-            readonly default: false;
         };
         readonly rpcUrls: {
             readonly type: "object";

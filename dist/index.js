@@ -1,4 +1,3 @@
-import { privateKeyToAccount } from "viem/accounts";
 import { getWalletBalances } from "./balances.js";
 import { loadConfig, pluginConfigSchema } from "./config.js";
 import { executeTransferPlan } from "./executePlan.js";
@@ -6,20 +5,21 @@ import { HttpLifiClient } from "./lifiClient.js";
 import { parseIntent } from "./parseIntent.js";
 import { resolveIntent } from "./resolveAssets.js";
 import { planTransfer } from "./routePlanner.js";
+import { resolveLocalWallet } from "./wallet.js";
 export async function completeTransferIntent(input, context) {
     const config = loadConfig(context?.config);
-    const simulateOnly = input.simulateOnly ?? config.simulateOnly;
-    const effectiveConfig = { ...config, simulateOnly };
-    const lifiClient = new HttpLifiClient(effectiveConfig);
+    const lifiClient = new HttpLifiClient(config);
     const parsed = parseIntent(input.intent);
-    const resolvedIntent = await resolveIntent(parsed, effectiveConfig, lifiClient);
-    const ownerAddress = input.fromAddress ?? (effectiveConfig.privateKey ? privateKeyToAccount(effectiveConfig.privateKey).address : undefined);
+    const resolvedIntent = await resolveIntent(parsed, config, lifiClient);
+    let ownerAddress = input.fromAddress;
+    let localWallet;
     if (!ownerAddress) {
-        throw new Error("A wallet address is required. Provide fromAddress for simulations or configure OPENCLAW_PRIVATE_KEY.");
+        localWallet = await resolveLocalWallet(context);
+        ownerAddress = localWallet.address;
     }
-    const balances = await getWalletBalances(ownerAddress, effectiveConfig);
-    const plan = await planTransfer(resolvedIntent, ownerAddress, balances, lifiClient, effectiveConfig);
-    return executeTransferPlan(plan, effectiveConfig);
+    const balances = await getWalletBalances(ownerAddress, config);
+    const plan = await planTransfer(resolvedIntent, ownerAddress, balances, lifiClient, config);
+    return executeTransferPlan(plan, config, localWallet);
 }
 export const plugin = {
     id: "intent-transfer-completion-lifi",
@@ -36,7 +36,6 @@ export const plugin = {
                 type: "object",
                 properties: {
                     intent: { type: "string" },
-                    simulateOnly: { type: "boolean" },
                     fromAddress: { type: "string" }
                 },
                 required: ["intent"]

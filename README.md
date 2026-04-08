@@ -36,19 +36,21 @@ When the wallet lacks enough of the requested token on the requested chain, the 
 npm install
 ```
 
-2. Copy `.env.example` into your environment and set:
+2. Configure the plugin through OpenClaw plugin config or the native tool context. Provide:
 
 - per-chain RPC URLs
-- `OPENCLAW_PRIVATE_KEY` for live execution
-- optional `LIFI_API_KEY`
+- optional `lifiApiKey`
+- optional `ensRpcUrl` for ENS recipients
 
-3. Build:
+3. Connect a local wallet in OpenClaw for live execution. The plugin discovers that wallet from native tool context and returns an error if none is available.
+
+4. Build:
 
 ```bash
 npm run build
 ```
 
-4. Test:
+5. Test:
 
 ```bash
 npm test
@@ -58,5 +60,6 @@ npm test
 
 - All executable logic lives in the TypeScript plugin.
 - The bundled skill contains routing guidance only.
-- Live execution requires a signer and funded wallet.
-- ENS resolution uses mainnet RPC via `ENS_RPC_URL`.
+- Live execution requires a funded local OpenClaw wallet.
+- ENS resolution uses the configured `ensRpcUrl`.
+- The runtime does not load configuration from `.env`.

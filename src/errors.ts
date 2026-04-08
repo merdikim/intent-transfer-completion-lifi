@@ -35,7 +35,7 @@ export class InsufficientFundsError extends Error {
 
 export class MissingSignerError extends Error {
   constructor() {
-    super("Live execution requires OPENCLAW_PRIVATE_KEY or an equivalent configured signer.");
+    super("No local OpenClaw wallet was found. Connect a local wallet in OpenClaw and try again.");
     this.name = "MissingSignerError";
   }
 }

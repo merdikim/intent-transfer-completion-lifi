@@ -1,11 +1,18 @@
 import type { Address, Chain, Hex, PublicClient, WalletClient } from "viem";
 export type ChainKey = "ethereum" | "base" | "arbitrum" | "optimism" | "polygon";
+export interface OpenClawWalletProvider {
+    walletClient?: WalletClient;
+    getWalletClient?: () => Promise<WalletClient> | WalletClient;
+}
 export interface NativeToolContext {
     config?: Partial<PluginConfig>;
+    walletClient?: WalletClient;
+    getWalletClient?: () => Promise<WalletClient> | WalletClient;
+    wallet?: OpenClawWalletProvider;
+    openclaw?: OpenClawWalletProvider;
 }
 export interface ToolInput {
     intent: string;
-    simulateOnly?: boolean;
     fromAddress?: Address;
 }
 export interface ParsedIntent {
@@ -132,7 +139,6 @@ export interface TransferPlan {
     shortfallRaw: bigint;
     route?: RoutePlan;
     warnings: string[];
-    simulateOnly: boolean;
 }
 export interface ExecutedTransaction {
     chainId: number;
@@ -150,14 +156,16 @@ export interface PluginConfig {
     lifiBaseUrl: string;
     lifiApiKey?: string;
     integrator: string;
-    privateKey?: Hex;
     ensRpcUrl?: string;
     defaultSlippageBps: number;
-    simulateOnly: boolean;
     rpcUrls: Partial<Record<ChainKey, string>>;
     minNativeReserve: Partial<Record<ChainKey, string>>;
     routeStatusPollIntervalMs: number;
     routeStatusTimeoutMs: number;
+}
+export interface LocalWalletBinding {
+    address: Address;
+    walletClient: WalletClient;
 }
 export interface ClientBundle {
     publicClient: PublicClient;

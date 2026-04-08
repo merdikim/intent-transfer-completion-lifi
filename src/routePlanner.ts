@@ -45,8 +45,7 @@ export async function planTransfer(
       requestedAmountRaw: intent.amountRaw,
       currentTargetBalanceRaw: targetBalanceRaw,
       shortfallRaw,
-      warnings,
-      simulateOnly: config.simulateOnly
+      warnings
     };
   }
 
@@ -71,8 +70,7 @@ export async function planTransfer(
     currentTargetBalanceRaw: targetBalanceRaw,
     shortfallRaw,
     route,
-    warnings,
-    simulateOnly: config.simulateOnly
+    warnings
   };
 }
 

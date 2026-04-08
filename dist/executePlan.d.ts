@@ -1,2 +1,2 @@
-import type { ExecutionResult, PluginConfig, TransferPlan } from "./types.js";
-export declare function executeTransferPlan(plan: TransferPlan, config: PluginConfig): Promise<ExecutionResult>;
+import type { ExecutionResult, LocalWalletBinding, PluginConfig, TransferPlan } from "./types.js";
+export declare function executeTransferPlan(plan: TransferPlan, config: PluginConfig, localWallet?: LocalWalletBinding): Promise<ExecutionResult>;

@@ -1,28 +1,18 @@
-import { createPublicClient, createWalletClient, encodeFunctionData, erc20Abi, getAddress, http, maxUint256 } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
+import { createPublicClient, encodeFunctionData, erc20Abi, getAddress, http, maxUint256 } from "viem";
 import { getAssetBalance } from "./balances.js";
 import { MissingSignerError, ExecutionError } from "./errors.js";
 import { sendFinalTransfer } from "./finalTransfer.js";
 import { waitForBalanceIncrease } from "./statusTracker.js";
 import { SUPPORTED_CHAINS } from "./config.js";
-export async function executeTransferPlan(plan, config) {
-    if (plan.simulateOnly) {
-        return {
-            executed: false,
-            plan,
-            transactions: [],
-            summary: buildSummary(plan, false)
-        };
-    }
-    if (!config.privateKey) {
+export async function executeTransferPlan(plan, config, localWallet) {
+    if (!localWallet) {
         throw new MissingSignerError();
     }
     const transactions = [];
-    const account = privateKeyToAccount(config.privateKey);
     if (plan.route) {
         const preRouteTargetBalance = await getAssetBalance(plan.ownerAddress, plan.targetAsset, config);
         for (const step of plan.route.steps) {
-            const stepTransactions = await executeRouteStep(step, account.address, config);
+            const stepTransactions = await executeRouteStep(step, localWallet.address, config, localWallet);
             transactions.push(...stepTransactions);
         }
         await waitForBalanceIncrease({
@@ -32,7 +22,7 @@ export async function executeTransferPlan(plan, config) {
             config
         });
     }
-    const finalTransferHash = await sendFinalTransfer(plan, config);
+    const finalTransferHash = await sendFinalTransfer(plan, config, localWallet);
     transactions.push({
         chainId: plan.targetChain.id,
         hash: finalTransferHash,
@@ -43,10 +33,10 @@ export async function executeTransferPlan(plan, config) {
         plan,
         transactions,
         finalTransferHash,
-        summary: buildSummary(plan, true)
+        summary: buildSummary(plan)
     };
 }
-async function executeRouteStep(step, ownerAddress, config) {
+async function executeRouteStep(step, ownerAddress, config, localWallet) {
     const chain = Object.values(SUPPORTED_CHAINS).find((item) => item.id === step.action.fromChainId);
     if (!chain) {
         throw new ExecutionError(`Unsupported route step chain ${step.action.fromChainId}`);
@@ -55,13 +45,7 @@ async function executeRouteStep(step, ownerAddress, config) {
     if (!rpcUrl) {
         throw new ExecutionError(`Missing RPC URL for ${chain.key}`);
     }
-    const account = privateKeyToAccount(config.privateKey);
     const publicClient = createPublicClient({
-        chain: chain.chain,
-        transport: http(rpcUrl)
-    });
-    const walletClient = createWalletClient({
-        account,
         chain: chain.chain,
         transport: http(rpcUrl)
     });
@@ -75,8 +59,8 @@ async function executeRouteStep(step, ownerAddress, config) {
             args: [ownerAddress, approvalAddress]
         }));
         if (allowance < BigInt(step.action.fromAmount)) {
-            const approvalHash = await walletClient.sendTransaction({
-                account,
+            const approvalHash = await localWallet.walletClient.sendTransaction({
+                account: localWallet.address,
                 chain: chain.chain,
                 to: step.action.fromToken.address,
                 data: encodeFunctionData({
@@ -93,8 +77,8 @@ async function executeRouteStep(step, ownerAddress, config) {
     if (!transactionRequest) {
         throw new ExecutionError(`LI.FI route step for ${step.toolDetails?.name ?? step.tool ?? "unknown tool"} did not include a transaction request.`);
     }
-    const txHash = await walletClient.sendTransaction({
-        account,
+    const txHash = await localWallet.walletClient.sendTransaction({
+        account: localWallet.address,
         chain: chain.chain,
         to: transactionRequest.to,
         data: transactionRequest.data,
@@ -106,12 +90,10 @@ async function executeRouteStep(step, ownerAddress, config) {
     transactions.push({ chainId: chain.id, hash: txHash, kind: "route-step" });
     return transactions;
 }
-function buildSummary(plan, executed) {
+function buildSummary(plan) {
     const routeSummary = plan.route
         ? `LI.FI route with ${plan.route.steps.length} step(s) planned before the final transfer.`
         : "No route required because the destination chain already had sufficient balance.";
-    return executed
-        ? `Transfer completed. ${routeSummary}`
-        : `Simulation completed. ${routeSummary}`;
+    return `Transfer completed. ${routeSummary}`;
 }
 //# sourceMappingURL=executePlan.js.map

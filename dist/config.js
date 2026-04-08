@@ -102,10 +102,8 @@ export const pluginConfigSchema = {
         lifiApiKey: { type: "string" },
         lifiBaseUrl: { type: "string", default: "https://li.quest/v1" },
         integrator: { type: "string", default: "openclaw-intent-transfer" },
-        privateKey: { type: "string" },
         ensRpcUrl: { type: "string" },
         defaultSlippageBps: { type: "integer", default: 100 },
-        simulateOnly: { type: "boolean", default: false },
         rpcUrls: {
             type: "object",
             properties: {
@@ -128,37 +126,29 @@ export const pluginConfigSchema = {
         }
     }
 };
+const DEFAULT_CONFIG = {
+    lifiBaseUrl: "https://li.quest/v1",
+    lifiApiKey: undefined,
+    integrator: "openclaw-intent-transfer",
+    ensRpcUrl: undefined,
+    defaultSlippageBps: 100,
+    rpcUrls: {},
+    minNativeReserve: {
+        ethereum: "0.01",
+        base: "0.002",
+        arbitrum: "0.002",
+        optimism: "0.002",
+        polygon: "1"
+    },
+    routeStatusPollIntervalMs: 10_000,
+    routeStatusTimeoutMs: 20 * 60 * 1000
+};
 export function loadConfig(overrides = {}) {
-    const config = {
-        lifiBaseUrl: process.env.LIFI_BASE_URL ?? "https://li.quest/v1",
-        lifiApiKey: process.env.LIFI_API_KEY,
-        integrator: process.env.LIFI_INTEGRATOR ?? "openclaw-intent-transfer",
-        privateKey: process.env.OPENCLAW_PRIVATE_KEY,
-        ensRpcUrl: process.env.ENS_RPC_URL,
-        defaultSlippageBps: Number.parseInt(process.env.DEFAULT_SLIPPAGE_BPS ?? "100", 10),
-        simulateOnly: (process.env.SIMULATE_ONLY ?? "false").toLowerCase() === "true",
-        rpcUrls: {
-            ethereum: process.env.RPC_URL_ETHEREUM,
-            base: process.env.RPC_URL_BASE,
-            arbitrum: process.env.RPC_URL_ARBITRUM,
-            optimism: process.env.RPC_URL_OPTIMISM,
-            polygon: process.env.RPC_URL_POLYGON
-        },
-        minNativeReserve: {
-            ethereum: process.env.MIN_NATIVE_RESERVE_ETHEREUM ?? "0.01",
-            base: process.env.MIN_NATIVE_RESERVE_BASE ?? "0.002",
-            arbitrum: process.env.MIN_NATIVE_RESERVE_ARBITRUM ?? "0.002",
-            optimism: process.env.MIN_NATIVE_RESERVE_OPTIMISM ?? "0.002",
-            polygon: process.env.MIN_NATIVE_RESERVE_POLYGON ?? "1"
-        },
-        routeStatusPollIntervalMs: 10_000,
-        routeStatusTimeoutMs: 20 * 60 * 1000
-    };
     return {
-        ...config,
+        ...DEFAULT_CONFIG,
         ...overrides,
-        rpcUrls: { ...config.rpcUrls, ...overrides.rpcUrls },
-        minNativeReserve: { ...config.minNativeReserve, ...overrides.minNativeReserve }
+        rpcUrls: { ...DEFAULT_CONFIG.rpcUrls, ...overrides.rpcUrls },
+        minNativeReserve: { ...DEFAULT_CONFIG.minNativeReserve, ...overrides.minNativeReserve }
     };
 }
 export function getChainByAlias(input) {

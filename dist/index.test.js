@@ -63,7 +63,6 @@ test("planTransfer skips LI.FI route when destination balance is sufficient", as
     ];
     const config = {
         ...loadConfig({
-            simulateOnly: true,
             rpcUrls: { base: "http://127.0.0.1:8545" }
         }),
         rpcUrls: { base: "http://127.0.0.1:8545" }
@@ -142,7 +141,6 @@ test("planTransfer selects a LI.FI route when the destination chain is short", a
     ];
     const config = {
         ...loadConfig({
-            simulateOnly: true,
             rpcUrls: { optimism: "http://127.0.0.1:8545", arbitrum: "http://127.0.0.1:8546" }
         }),
         rpcUrls: { optimism: "http://127.0.0.1:8545", arbitrum: "http://127.0.0.1:8546" }

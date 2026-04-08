@@ -25,8 +25,7 @@ export async function planTransfer(intent, ownerAddress, balances, lifiClient, c
             requestedAmountRaw: intent.amountRaw,
             currentTargetBalanceRaw: targetBalanceRaw,
             shortfallRaw,
-            warnings,
-            simulateOnly: config.simulateOnly
+            warnings
         };
     }
     const candidate = await selectBestRouteCandidate(intent, ownerAddress, balances, shortfallRaw, lifiClient, config);
@@ -49,8 +48,7 @@ export async function planTransfer(intent, ownerAddress, balances, lifiClient, c
         currentTargetBalanceRaw: targetBalanceRaw,
         shortfallRaw,
         route,
-        warnings,
-        simulateOnly: config.simulateOnly
+        warnings
     };
 }
 async function selectBestRouteCandidate(intent, ownerAddress, balances, shortfallRaw, lifiClient, config) {

@@ -1,13 +1,11 @@
 import {
   createPublicClient,
-  createWalletClient,
   encodeFunctionData,
   erc20Abi,
   getAddress,
   http,
   maxUint256
 } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
 
 import { getAssetBalance } from "./balances.js";
 import { MissingSignerError, ExecutionError } from "./errors.js";
@@ -15,30 +13,31 @@ import { sendFinalTransfer } from "./finalTransfer.js";
 import { waitForBalanceIncrease } from "./statusTracker.js";
 import { SUPPORTED_CHAINS } from "./config.js";
 import type { Address, Hex } from "viem";
-import type { ExecutedTransaction, ExecutionResult, PluginConfig, RouteStep, TransferPlan } from "./types.js";
+import type {
+  ExecutedTransaction,
+  ExecutionResult,
+  LocalWalletBinding,
+  PluginConfig,
+  RouteStep,
+  TransferPlan
+} from "./types.js";
 
-export async function executeTransferPlan(plan: TransferPlan, config: PluginConfig): Promise<ExecutionResult> {
-  if (plan.simulateOnly) {
-    return {
-      executed: false,
-      plan,
-      transactions: [],
-      summary: buildSummary(plan, false)
-    };
-  }
-
-  if (!config.privateKey) {
+export async function executeTransferPlan(
+  plan: TransferPlan,
+  config: PluginConfig,
+  localWallet?: LocalWalletBinding
+): Promise<ExecutionResult> {
+  if (!localWallet) {
     throw new MissingSignerError();
   }
 
   const transactions: ExecutedTransaction[] = [];
-  const account = privateKeyToAccount(config.privateKey);
 
   if (plan.route) {
     const preRouteTargetBalance = await getAssetBalance(plan.ownerAddress, plan.targetAsset, config);
 
     for (const step of plan.route.steps) {
-      const stepTransactions = await executeRouteStep(step, account.address, config);
+      const stepTransactions = await executeRouteStep(step, localWallet.address, config, localWallet);
       transactions.push(...stepTransactions);
     }
 
@@ -50,7 +49,7 @@ export async function executeTransferPlan(plan: TransferPlan, config: PluginConf
     });
   }
 
-  const finalTransferHash = await sendFinalTransfer(plan, config);
+  const finalTransferHash = await sendFinalTransfer(plan, config, localWallet);
   transactions.push({
     chainId: plan.targetChain.id,
     hash: finalTransferHash,
@@ -62,14 +61,15 @@ export async function executeTransferPlan(plan: TransferPlan, config: PluginConf
     plan,
     transactions,
     finalTransferHash,
-    summary: buildSummary(plan, true)
+    summary: buildSummary(plan)
   };
 }
 
 async function executeRouteStep(
   step: RouteStep,
   ownerAddress: Address,
-  config: PluginConfig
+  config: PluginConfig,
+  localWallet: LocalWalletBinding
 ): Promise<ExecutedTransaction[]> {
   const chain = Object.values(SUPPORTED_CHAINS).find((item) => item.id === step.action.fromChainId);
   if (!chain) {
@@ -81,13 +81,7 @@ async function executeRouteStep(
     throw new ExecutionError(`Missing RPC URL for ${chain.key}`);
   }
 
-  const account = privateKeyToAccount(config.privateKey!);
   const publicClient = createPublicClient({
-    chain: chain.chain,
-    transport: http(rpcUrl)
-  });
-  const walletClient = createWalletClient({
-    account,
     chain: chain.chain,
     transport: http(rpcUrl)
   });
@@ -103,8 +97,8 @@ async function executeRouteStep(
     })) as bigint;
 
     if (allowance < BigInt(step.action.fromAmount)) {
-      const approvalHash = await walletClient.sendTransaction({
-        account,
+      const approvalHash = await localWallet.walletClient.sendTransaction({
+        account: localWallet.address,
         chain: chain.chain,
         to: step.action.fromToken.address,
         data: encodeFunctionData({
@@ -125,8 +119,8 @@ async function executeRouteStep(
     );
   }
 
-  const txHash = await walletClient.sendTransaction({
-    account,
+  const txHash = await localWallet.walletClient.sendTransaction({
+    account: localWallet.address,
     chain: chain.chain,
     to: transactionRequest.to,
     data: transactionRequest.data,
@@ -140,12 +134,10 @@ async function executeRouteStep(
   return transactions;
 }
 
-function buildSummary(plan: TransferPlan, executed: boolean): string {
+function buildSummary(plan: TransferPlan): string {
   const routeSummary = plan.route
     ? `LI.FI route with ${plan.route.steps.length} step(s) planned before the final transfer.`
     : "No route required because the destination chain already had sufficient balance.";
 
-  return executed
-    ? `Transfer completed. ${routeSummary}`
-    : `Simulation completed. ${routeSummary}`;
+  return `Transfer completed. ${routeSummary}`;
 }

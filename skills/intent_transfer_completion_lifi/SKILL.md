@@ -40,7 +40,6 @@ Optional fields:
 ```json
 {
   "intent": "send 50usdc to merkim.eth on base",
-  "simulateOnly": true,
   "fromAddress": "0xYourWalletAddress"
 }
 ```

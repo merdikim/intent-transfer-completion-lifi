@@ -1,5 +1,3 @@
-import { privateKeyToAccount } from "viem/accounts";
-
 import { getWalletBalances } from "./balances.js";
 import { loadConfig, pluginConfigSchema } from "./config.js";
 import { executeTransferPlan } from "./executePlan.js";
@@ -7,27 +5,28 @@ import { HttpLifiClient } from "./lifiClient.js";
 import { parseIntent } from "./parseIntent.js";
 import { resolveIntent } from "./resolveAssets.js";
 import { planTransfer } from "./routePlanner.js";
-import type { ExecutionResult, NativeToolContext, OpenClawPlugin, ToolInput } from "./types.js";
+import { resolveLocalWallet } from "./wallet.js";
+import type { ExecutionResult, LocalWalletBinding, NativeToolContext, OpenClawPlugin, ToolInput } from "./types.js";
 
 export async function completeTransferIntent(
   input: ToolInput,
   context?: NativeToolContext
 ): Promise<ExecutionResult> {
   const config = loadConfig(context?.config);
-  const simulateOnly = input.simulateOnly ?? config.simulateOnly;
-  const effectiveConfig = { ...config, simulateOnly };
-  const lifiClient = new HttpLifiClient(effectiveConfig);
+  const lifiClient = new HttpLifiClient(config);
   const parsed = parseIntent(input.intent);
-  const resolvedIntent = await resolveIntent(parsed, effectiveConfig, lifiClient);
+  const resolvedIntent = await resolveIntent(parsed, config, lifiClient);
+  let ownerAddress = input.fromAddress;
+  let localWallet: LocalWalletBinding | undefined;
 
-  const ownerAddress = input.fromAddress ?? (effectiveConfig.privateKey ? privateKeyToAccount(effectiveConfig.privateKey).address : undefined);
   if (!ownerAddress) {
-    throw new Error("A wallet address is required. Provide fromAddress for simulations or configure OPENCLAW_PRIVATE_KEY.");
+    localWallet = await resolveLocalWallet(context);
+    ownerAddress = localWallet.address;
   }
 
-  const balances = await getWalletBalances(ownerAddress, effectiveConfig);
-  const plan = await planTransfer(resolvedIntent, ownerAddress, balances, lifiClient, effectiveConfig);
-  return executeTransferPlan(plan, effectiveConfig);
+  const balances = await getWalletBalances(ownerAddress, config);
+  const plan = await planTransfer(resolvedIntent, ownerAddress, balances, lifiClient, config);
+  return executeTransferPlan(plan, config, localWallet);
 }
 
 export const plugin: OpenClawPlugin = {
@@ -46,7 +45,6 @@ export const plugin: OpenClawPlugin = {
         type: "object",
         properties: {
           intent: { type: "string" },
-          simulateOnly: { type: "boolean" },
           fromAddress: { type: "string" }
         },
         required: ["intent"]
