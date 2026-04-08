@@ -49,7 +49,7 @@ export declare const pluginConfigSchema: {
             readonly properties: {
                 readonly ethereum: {
                     readonly type: "string";
-                    readonly default: "0.01";
+                    readonly default: "0.003";
                 };
                 readonly base: {
                     readonly type: "string";

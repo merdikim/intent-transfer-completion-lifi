@@ -117,7 +117,7 @@ export const pluginConfigSchema = {
         minNativeReserve: {
             type: "object",
             properties: {
-                ethereum: { type: "string", default: "0.01" },
+                ethereum: { type: "string", default: "0.003" },
                 base: { type: "string", default: "0.002" },
                 arbitrum: { type: "string", default: "0.002" },
                 optimism: { type: "string", default: "0.002" },
@@ -134,7 +134,7 @@ const DEFAULT_CONFIG = {
     defaultSlippageBps: 100,
     rpcUrls: {},
     minNativeReserve: {
-        ethereum: "0.01",
+        ethereum: "0.003",
         base: "0.002",
         arbitrum: "0.002",
         optimism: "0.002",

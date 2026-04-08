@@ -61,7 +61,7 @@
         "properties": {
           "ethereum": {
             "type": "string",
-            "default": "0.01"
+            "default": "0.003"
           },
           "base": {
             "type": "string",
