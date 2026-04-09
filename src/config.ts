@@ -114,11 +114,11 @@ export const pluginConfigSchema = {
     rpcUrls: {
       type: "object",
       properties: {
-        ethereum: { type: "string" },
-        base: { type: "string" },
-        arbitrum: { type: "string" },
-        optimism: { type: "string" },
-        polygon: { type: "string" }
+        ethereum: { type: "string", default: "https://cloudflare-eth.com/v1/mainnet" },
+        base: { type: "string", default: "https://mainnet.base.org" },
+        arbitrum: { type: "string", default: "https://arb1.arbitrum.io/rpc" },
+        optimism: { type: "string", default: "https://mainnet.optimism.io" },
+        polygon: { type: "string", default: "https://polygon.drpc.org" }
       }
     },
     minNativeReserve: {
@@ -139,7 +139,14 @@ const DEFAULT_CONFIG: PluginConfig = {
   lifiApiKey: undefined,
   integrator: "openclaw-intent-transfer",
   defaultSlippageBps: 100,
-  rpcUrls: {},
+  // Public RPC defaults are convenient for development but are typically rate-limited.
+  rpcUrls: {
+    ethereum: "https://cloudflare-eth.com/v1/mainnet",
+    base: "https://mainnet.base.org",
+    arbitrum: "https://arb1.arbitrum.io/rpc",
+    optimism: "https://mainnet.optimism.io",
+    polygon: "https://polygon.drpc.org"
+  },
   minNativeReserve: {
     ethereum: "0.003",
     base: "0.002",

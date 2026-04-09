@@ -16,13 +16,12 @@ export async function completeTransferIntent(
   const lifiClient = new HttpLifiClient(config);
   const parsed = parseIntent(input.intent);
   const resolvedIntent = await resolveIntent(parsed, config, lifiClient);
-  let ownerAddress = input.fromAddress;
-  let localWallet: LocalWalletBinding | undefined;
 
-  if (!ownerAddress) {
-    localWallet = await resolveLocalWallet(context);
-    ownerAddress = localWallet.address;
-  }
+  let localWallet = await resolveLocalWallet(context);
+
+  if(!localWallet) throw new Error("No wallet found!")
+    
+  const ownerAddress = localWallet.address
 
   const balances = await getWalletBalances(ownerAddress, config);
   const plan = await planTransfer(resolvedIntent, ownerAddress, balances, lifiClient, config);

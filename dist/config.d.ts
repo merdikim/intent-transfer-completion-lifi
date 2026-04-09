@@ -26,18 +26,23 @@ export declare const pluginConfigSchema: {
             readonly properties: {
                 readonly ethereum: {
                     readonly type: "string";
+                    readonly default: "https://cloudflare-eth.com/v1/mainnet";
                 };
                 readonly base: {
                     readonly type: "string";
+                    readonly default: "https://mainnet.base.org";
                 };
                 readonly arbitrum: {
                     readonly type: "string";
+                    readonly default: "https://arb1.arbitrum.io/rpc";
                 };
                 readonly optimism: {
                     readonly type: "string";
+                    readonly default: "https://mainnet.optimism.io";
                 };
                 readonly polygon: {
                     readonly type: "string";
+                    readonly default: "https://polygon.drpc.org";
                 };
             };
         };
