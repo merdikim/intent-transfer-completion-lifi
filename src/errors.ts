@@ -13,7 +13,7 @@ export class UnsupportedChainError extends Error {
 }
 
 export class UnsupportedTokenError extends Error {
-  constructor(token: string, chain: string) {
+  constructor(token: string, chain: number) {
     super(`Unsupported token ${token} on ${chain}`);
     this.name = "UnsupportedTokenError";
   }

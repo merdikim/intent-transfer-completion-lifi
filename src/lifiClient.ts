@@ -1,38 +1,7 @@
 import type { Address } from "viem";
 
 import { LifiApiError } from "./errors.js";
-import type { LifiToken, PluginConfig, RoutePlan, RouteQuote } from "./types.js";
-
-interface RequestOptions {
-  method?: "GET" | "POST";
-  body?: unknown;
-  query?: Record<string, string | number | undefined>;
-}
-
-export interface LifiClient {
-  getTokens(chainId: number): Promise<LifiToken[]>;
-  getQuote(params: {
-    fromChain: number;
-    toChain: number;
-    fromToken: Address;
-    toToken: Address;
-    fromAddress: Address;
-    fromAmount: bigint;
-    toAddress?: Address;
-    slippageBps?: number;
-  }): Promise<RouteQuote>;
-  getRoutes(params: {
-    fromChain: number;
-    toChain: number;
-    fromToken: Address;
-    toToken: Address;
-    fromAddress: Address;
-    fromAmount: bigint;
-    toAddress?: Address;
-    slippageBps?: number;
-  }): Promise<RoutePlan>;
-  getStatus(params: Record<string, string>): Promise<unknown>;
-}
+import type { LifiClient, LifiToken, PluginConfig, RequestOptions, RoutePlan, RouteQuote } from "./types.js";
 
 export class HttpLifiClient implements LifiClient {
   constructor(private readonly config: PluginConfig) {}

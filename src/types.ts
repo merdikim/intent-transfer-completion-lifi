@@ -17,7 +17,7 @@ export interface NativeToolContext {
 
 export interface ToolInput {
   intent: string;
-  fromAddress?: Address;
+  walletPath?: string;
 }
 
 export interface ParsedIntent {
@@ -49,8 +49,8 @@ export interface AssetRef {
   address: Address;
   decimals: number;
   chainId: number;
-  chainKey: ChainKey;
-  isNative: boolean;
+  // chainKey: ChainKey;
+  // isNative: boolean;
 }
 
 export interface ResolvedIntent {
@@ -209,4 +209,47 @@ export interface OpenClawPlugin {
   bundledSkills: string[];
   configSchema: Record<string, unknown>;
   tools: CompleteTransferTool[];
+}
+
+export interface RequestOptions {
+  method?: "GET" | "POST";
+  body?: unknown;
+  query?: Record<string, string | number | undefined>;
+}
+
+export interface LifiClient {
+  getTokens(chainId: number): Promise<LifiToken[]>;
+  getQuote(params: {
+    fromChain: number;
+    toChain: number;
+    fromToken: Address;
+    toToken: Address;
+    fromAddress: Address;
+    fromAmount: bigint;
+    toAddress?: Address;
+    slippageBps?: number;
+  }): Promise<RouteQuote>;
+  getRoutes(params: {
+    fromChain: number;
+    toChain: number;
+    fromToken: Address;
+    toToken: Address;
+    fromAddress: Address;
+    fromAmount: bigint;
+    toAddress?: Address;
+    slippageBps?: number;
+  }): Promise<RoutePlan>;
+  getStatus(params: Record<string, string>): Promise<unknown>;
+}
+
+export interface SupportedToken {
+  chainId: number,
+  address:Address,
+  symbol: string,
+  name: string,
+  decimals: number,
+  priceUSD: number,
+  logoURI: string,
+  verificationStatus: string,
+  verificationStatusBreakdown: []  
 }

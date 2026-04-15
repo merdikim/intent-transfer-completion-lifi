@@ -1,35 +1,35 @@
 import {
+  Address,
   createPublicClient,
   getAddress,
+  GetEnsAddressReturnType,
   http,
   isAddress,
   parseUnits
 } from "viem";
 
-import { getChainByAlias, NATIVE_TOKEN_ADDRESS, SUPPORTED_CHAINS, DEFAULT_TOKEN_REGISTRY } from "./config.js";
+import { getChainByAlias, getSupportedTokens } from "./config.js";
 import { RecipientResolutionError, UnsupportedChainError, UnsupportedTokenError } from "./errors.js";
-import type { AssetRef, ParsedIntent, PluginConfig, ResolvedIntent, ResolvedRecipient } from "./types.js";
-
-import type { LifiClient } from "./lifiClient.js";
+import type { AssetRef, ParsedIntent, ResolvedIntent, ResolvedRecipient, SupportedToken } from "./types.js";
+import { mainnet } from "viem/chains";
+import { normalize } from "viem/ens";
 
 export async function resolveIntent(
-  parsed: ParsedIntent,
-  config: PluginConfig,
-  lifiClient: LifiClient
+  parsed: ParsedIntent
 ): Promise<ResolvedIntent> {
-  const chain = getChainByAlias(parsed.requestedChain);
+  const chain = await getChainByAlias(parsed.requestedChain);
   if (!chain) {
     throw new UnsupportedChainError(parsed.requestedChain);
   }
 
-  const asset = await resolveAsset(parsed.tokenSymbol, chain.key, lifiClient);
-  const recipient = await resolveRecipient(parsed.recipient, config);
+  const asset = await resolveAsset(parsed.tokenSymbol, chain.id);
+  const recipient = await resolveRecipient(parsed.recipient);
   const amountRaw = parseUnits(parsed.amount, asset.decimals);
 
-  return { parsed, recipient, chain, asset, amountRaw };
+  return { parsed, recipient, chain, asset, amountRaw } as ResolvedIntent;
 }
 
-export async function resolveRecipient(recipient: string, config: PluginConfig): Promise<ResolvedRecipient> {
+export async function resolveRecipient(recipient: string): Promise<ResolvedRecipient> {
   if (isAddress(recipient)) {
     return { raw: recipient, resolvedAddress: getAddress(recipient) };
   }
@@ -39,11 +39,12 @@ export async function resolveRecipient(recipient: string, config: PluginConfig):
   }
 
   const client = createPublicClient({
-    chain: SUPPORTED_CHAINS.ethereum.chain,
-    transport: http()
+    chain: mainnet,
+    transport: http("https://ethereum-rpc.publicnode.com")
   });
 
-  const resolvedAddress = await client.getEnsAddress({ name: recipient });
+  const resolvedAddress = await client.getEnsAddress({ name: normalize(recipient) });
+  
   if (!resolvedAddress) {
     throw new RecipientResolutionError(recipient);
   }
@@ -53,40 +54,20 @@ export async function resolveRecipient(recipient: string, config: PluginConfig):
 
 export async function resolveAsset(
   tokenSymbol: string,
-  chainKey: keyof typeof SUPPORTED_CHAINS,
-  lifiClient: LifiClient
+  chainKey:number
 ): Promise<AssetRef> {
-  const registryEntry = DEFAULT_TOKEN_REGISTRY[tokenSymbol.toUpperCase()];
-  if (registryEntry) {
-    const address = registryEntry.addresses[chainKey];
-    const isNative = registryEntry.nativeOn?.includes(chainKey) ?? false;
-    if (address) {
-      return {
-        symbol: registryEntry.symbol,
-        address,
-        decimals: registryEntry.decimals,
-        chainId: SUPPORTED_CHAINS[chainKey].id,
-        chainKey,
-        isNative: isNative || address === NATIVE_TOKEN_ADDRESS
-      };
-    }
-  }
+  const normalizedSymbol = tokenSymbol.toUpperCase();
+  const token = await getSupportedTokens(chainKey).then((tokens:Array<SupportedToken>) => tokens.find(t => t.symbol.toUpperCase() === normalizedSymbol));
 
-  const chainId = SUPPORTED_CHAINS[chainKey].id;
-  const lifiToken = (await lifiClient.getTokens(chainId)).find(
-    (token) => token.symbol.toUpperCase() === tokenSymbol.toUpperCase()
-  );
-
-  if (!lifiToken) {
-    throw new UnsupportedTokenError(tokenSymbol, SUPPORTED_CHAINS[chainKey].name);
+  if (!token) {
+    throw new UnsupportedTokenError(tokenSymbol, chainKey);
   }
 
   return {
-    symbol: lifiToken.symbol.toUpperCase(),
-    address: lifiToken.address,
-    decimals: lifiToken.decimals,
-    chainId,
-    chainKey,
-    isNative: lifiToken.address === NATIVE_TOKEN_ADDRESS
+    symbol: token.symbol.toUpperCase(),
+    address: token.address,
+    decimals: token.decimals,
+    chainId: token.chainId,
+    //isNative: token.address === NATIVE_TOKEN_ADDRESS
   };
 }
