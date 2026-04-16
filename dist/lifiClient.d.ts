@@ -1,5 +1,6 @@
 import type { Address } from "viem";
 import type { LifiClient, LifiToken, PluginConfig, RoutePlan, RouteQuote } from "./types.js";
+export type { LifiClient } from "./types.js";
 export declare class HttpLifiClient implements LifiClient {
     private readonly config;
     constructor(config: PluginConfig);
@@ -12,7 +13,6 @@ export declare class HttpLifiClient implements LifiClient {
         fromAddress: Address;
         fromAmount: bigint;
         toAddress?: Address;
-        slippageBps?: number;
     }): Promise<RouteQuote>;
     getRoutes(params: {
         fromChain: number;
@@ -22,7 +22,6 @@ export declare class HttpLifiClient implements LifiClient {
         fromAddress: Address;
         fromAmount: bigint;
         toAddress?: Address;
-        slippageBps?: number;
     }): Promise<RoutePlan>;
     getStatus(params: Record<string, string>): Promise<unknown>;
     private request;

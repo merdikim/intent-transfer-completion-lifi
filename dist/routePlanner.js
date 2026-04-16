@@ -1,21 +1,14 @@
-import { formatUnits } from "viem";
+import { formatUnits, zeroAddress } from "viem";
 import { getAssetBalance } from "./balances.js";
+import { loadConfig } from "./config.js";
 import { InsufficientFundsError } from "./errors.js";
-import { spendableAmount, validateTargetGas } from "./gasPolicy.js";
-export async function planTransfer(intent, ownerAddress, balances, lifiClient, config, balanceReader = getAssetBalance) {
-    const targetBalanceRaw = await balanceReader(ownerAddress, intent.asset, config);
-    const shortfallRaw = intent.amountRaw > targetBalanceRaw ? intent.amountRaw - targetBalanceRaw : 0n;
-    const targetNativeSymbol = intent.chain.nativeSymbol;
-    const targetNativeAsset = {
-        symbol: targetNativeSymbol,
-        address: "0x0000000000000000000000000000000000000000",
-        decimals: 18,
-        chainId: intent.chain.id,
-        chainKey: intent.chain.key,
-        isNative: true
-    };
-    const targetNativeBalance = await balanceReader(ownerAddress, targetNativeAsset, config);
-    const warnings = validateTargetGas(intent.asset, targetNativeBalance, config);
+import { HttpLifiClient } from "./lifiClient.js";
+export async function planTransfer(intent, ownerAddress, balances, assetBalanceOrLifiClient, config = loadConfig(), assetBalanceGetter = getAssetBalance) {
+    const lifiClient = typeof assetBalanceOrLifiClient === "bigint" ? new HttpLifiClient(config) : assetBalanceOrLifiClient;
+    const assetBalance = typeof assetBalanceOrLifiClient === "bigint"
+        ? assetBalanceOrLifiClient
+        : await assetBalanceGetter(ownerAddress, intent.asset);
+    const shortfallRaw = intent.amountRaw > assetBalance ? intent.amountRaw - assetBalance : 0n;
     if (shortfallRaw === 0n) {
         return {
             ownerAddress,
@@ -23,43 +16,47 @@ export async function planTransfer(intent, ownerAddress, balances, lifiClient, c
             targetChain: intent.chain,
             targetAsset: intent.asset,
             requestedAmountRaw: intent.amountRaw,
-            currentTargetBalanceRaw: targetBalanceRaw,
-            shortfallRaw,
-            warnings
+            currentTargetBalanceRaw: assetBalance,
+            shortfallRaw
         };
     }
-    const candidate = await selectBestRouteCandidate(intent, ownerAddress, balances, shortfallRaw, lifiClient, config);
-    const route = await lifiClient.getRoutes({
-        fromChain: candidate.sourceBalance.chainId,
-        toChain: intent.chain.id,
-        fromToken: candidate.sourceBalance.token.address,
-        toToken: intent.asset.address,
-        fromAddress: ownerAddress,
-        toAddress: ownerAddress,
-        fromAmount: spendableAmount(candidate.sourceBalance, config),
-        slippageBps: config.defaultSlippageBps
-    });
+    await ensureTargetNativeBalance(intent, ownerAddress, assetBalanceGetter);
+    const candidate = await selectBestRouteCandidate(intent, ownerAddress, balances, shortfallRaw, lifiClient);
     return {
         ownerAddress,
         recipient: intent.recipient,
         targetChain: intent.chain,
         targetAsset: intent.asset,
         requestedAmountRaw: intent.amountRaw,
-        currentTargetBalanceRaw: targetBalanceRaw,
+        currentTargetBalanceRaw: assetBalance,
         shortfallRaw,
-        route,
-        warnings
+        route: candidate.route
     };
 }
-async function selectBestRouteCandidate(intent, ownerAddress, balances, shortfallRaw, lifiClient, config) {
-    const candidates = balances.filter((position) => spendableAmount(position, config) > 0n);
+async function ensureTargetNativeBalance(intent, ownerAddress, assetBalanceGetter) {
+    const nativeSymbol = intent.chain.nativeSymbol;
+    if (!nativeSymbol) {
+        return;
+    }
+    const targetNativeAsset = {
+        symbol: nativeSymbol,
+        address: zeroAddress,
+        decimals: 18,
+        chainId: intent.chain.id,
+        chainKey: intent.chain.key,
+        isNative: true
+    };
+    await assetBalanceGetter(ownerAddress, targetNativeAsset);
+}
+async function selectBestRouteCandidate(intent, ownerAddress, balances, shortfallRaw, lifiClient) {
+    const candidates = balances.filter((position) => position.rawAmount > 0n);
     if (candidates.length === 0) {
         throw new InsufficientFundsError("No spendable balances were found across configured chains.");
     }
     let bestCandidate;
     let bestAmount = 0n;
     for (const position of candidates) {
-        const fromAmount = spendableAmount(position, config);
+        const fromAmount = position.rawAmount;
         const quote = await lifiClient.getQuote({
             fromChain: position.chainId,
             toChain: intent.chain.id,
@@ -67,8 +64,7 @@ async function selectBestRouteCandidate(intent, ownerAddress, balances, shortfal
             toToken: intent.asset.address,
             fromAddress: ownerAddress,
             toAddress: ownerAddress,
-            fromAmount,
-            slippageBps: config.defaultSlippageBps
+            fromAmount
         });
         const toAmount = BigInt(quote.toAmount);
         if (toAmount > bestAmount) {
@@ -76,7 +72,19 @@ async function selectBestRouteCandidate(intent, ownerAddress, balances, shortfal
             bestCandidate = { sourceBalance: position, quote };
         }
         if (toAmount >= shortfallRaw) {
-            return { sourceBalance: position, quote };
+            return {
+                sourceBalance: position,
+                quote,
+                route: await lifiClient.getRoutes({
+                    fromChain: position.chainId,
+                    toChain: intent.chain.id,
+                    fromToken: position.token.address,
+                    toToken: intent.asset.address,
+                    fromAddress: ownerAddress,
+                    toAddress: ownerAddress,
+                    fromAmount
+                })
+            };
         }
     }
     if (!bestCandidate) {

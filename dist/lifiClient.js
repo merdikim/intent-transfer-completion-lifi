@@ -19,8 +19,7 @@ export class HttpLifiClient {
                 toToken: params.toToken,
                 fromAddress: params.fromAddress,
                 toAddress: params.toAddress,
-                fromAmount: params.fromAmount.toString(),
-                slippage: ((params.slippageBps ?? this.config.defaultSlippageBps) / 100).toString()
+                fromAmount: params.fromAmount.toString()
             }
         });
     }
@@ -35,12 +34,11 @@ export class HttpLifiClient {
                 fromAddress: params.fromAddress,
                 toAddress: params.toAddress,
                 fromAmount: params.fromAmount.toString(),
-                options: {
-                    slippage: (params.slippageBps ?? this.config.defaultSlippageBps) / 100,
-                    integrator: this.config.integrator,
-                    allowSwitchChain: true,
-                    maxPriceImpact: 0.2
-                }
+                // options: {
+                //   integrator: this.config.integrator,
+                //   allowSwitchChain: true,
+                //   maxPriceImpact: 0.2
+                // }
             }
         });
         const route = response.routes?.[0];
@@ -65,16 +63,21 @@ export class HttpLifiClient {
                 }
             }
         }
+        const headers = {};
+        if (options.body) {
+            headers["content-type"] = "application/json";
+        }
+        if (this.config.lifiApiKey) {
+            headers["x-lifi-api-key"] = this.config.lifiApiKey;
+        }
         const response = await fetch(url, {
             method: options.method ?? "GET",
-            headers: {
-                "content-type": "application/json",
-                "x-lifi-api-key": this.config.lifiApiKey ?? ""
-            },
+            headers,
             body: options.body ? JSON.stringify(options.body) : undefined
         });
         if (!response.ok) {
-            throw new LifiApiError(`LI.FI request failed with status ${response.status}`);
+            const errorText = await response.text().catch(() => "");
+            throw new LifiApiError(`LI.FI request failed with status ${response.status}${errorText ? `: ${errorText}` : ""}`);
         }
         return (await response.json());
     }

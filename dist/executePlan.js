@@ -1,33 +1,32 @@
 import { createPublicClient, encodeFunctionData, erc20Abi, getAddress, http, maxUint256 } from "viem";
 import { getAssetBalance } from "./balances.js";
 import { MissingSignerError, ExecutionError } from "./errors.js";
-import { sendFinalTransfer } from "./finalTransfer.js";
 import { waitForBalanceIncrease } from "./statusTracker.js";
-import { SUPPORTED_CHAINS } from "./config.js";
-export async function executeTransferPlan(plan, config, localWallet) {
+export async function executeTransferPlan(plan, localWallet) {
     if (!localWallet) {
         throw new MissingSignerError();
     }
     const transactions = [];
+    console.log(plan);
     if (plan.route) {
-        const preRouteTargetBalance = await getAssetBalance(plan.ownerAddress, plan.targetAsset, config);
+        const preRouteTargetBalance = await getAssetBalance(plan.ownerAddress, plan.targetAsset);
         for (const step of plan.route.steps) {
-            const stepTransactions = await executeRouteStep(step, localWallet.address, config, localWallet);
+            const stepTransactions = await executeRouteStep(step, localWallet.address, localWallet);
             transactions.push(...stepTransactions);
         }
         await waitForBalanceIncrease({
             ownerAddress: plan.ownerAddress,
             asset: plan.targetAsset,
             minimumBalance: preRouteTargetBalance + plan.shortfallRaw,
-            config
         });
     }
-    const finalTransferHash = await sendFinalTransfer(plan, config, localWallet);
-    transactions.push({
-        chainId: plan.targetChain.id,
-        hash: finalTransferHash,
-        kind: "final-transfer"
-    });
+    const finalTransferHash = '0xjvjek'; // Placeholder until sendFinalTransfer is implemented
+    // // await sendFinalTransfer(plan, localWallet);
+    // transactions.push({
+    //   chainId: plan.targetChain.id,
+    //   hash: finalTransferHash,
+    //   kind: "final-transfer"
+    // });
     return {
         executed: true,
         plan,
@@ -36,7 +35,7 @@ export async function executeTransferPlan(plan, config, localWallet) {
         summary: buildSummary(plan)
     };
 }
-async function executeRouteStep(step, ownerAddress, config, localWallet) {
+async function executeRouteStep(step, ownerAddress, localWallet) {
     const chain = Object.values(SUPPORTED_CHAINS).find((item) => item.id === step.action.fromChainId);
     if (!chain) {
         throw new ExecutionError(`Unsupported route step chain ${step.action.fromChainId}`);

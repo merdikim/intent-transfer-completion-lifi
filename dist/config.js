@@ -20,37 +20,27 @@ export const getSupportedTokens = async (chain) => {
         throw new Error("Unable to load supported tokens from LI.FI");
     }
 };
-// export const pluginConfigSchema = {
-//   type: "object",
-//   properties: {
-//     lifiApiKey: { type: "string" },
-//     lifiBaseUrl: { type: "string", default: "https://li.quest/v1" },
-//     integrator: { type: "string", default: "openclaw-intent-transfer" },
-//     defaultSlippageBps: { type: "integer", default: 100 },
-//     rpcUrls: {
-//       type: "object",
-//       properties: {
-//         ethereum: { type: "string", default: "https://cloudflare-eth.com/v1/mainnet" },
-//         base: { type: "string", default: "https://mainnet.base.org" },
-//         arbitrum: { type: "string", default: "https://arb1.arbitrum.io/rpc" },
-//         optimism: { type: "string", default: "https://mainnet.optimism.io" },
-//         polygon: { type: "string", default: "https://polygon.drpc.org" }
-//       }
-//     },
-//     minNativeReserve: {
-//       type: "object",
-//       properties: {
-//         ethereum: { type: "string", default: "0.003" },
-//         base: { type: "string", default: "0.002" },
-//         arbitrum: { type: "string", default: "0.002" },
-//         optimism: { type: "string", default: "0.002" },
-//         polygon: { type: "string", default: "1" }
-//       }
-//     }
-//   }
-// } as const;
-export function loadConfig() {
-    return DEFAULT_CONFIG;
+export const pluginConfigSchema = {
+    type: "object",
+    properties: {
+        lifiApiKey: { type: "string" },
+        lifiBaseUrl: { type: "string", default: "https://li.quest/v1" },
+        integrator: { type: "string", default: "openclaw-intent-transfer" },
+    }
+};
+export function loadConfig(config) {
+    return {
+        ...DEFAULT_CONFIG,
+        ...config,
+        rpcUrls: {
+            ...DEFAULT_CONFIG.rpcUrls,
+            ...config?.rpcUrls
+        },
+        minNativeReserve: {
+            ...DEFAULT_CONFIG.minNativeReserve,
+            ...config?.minNativeReserve
+        }
+    };
 }
 export async function getChainByAlias(input) {
     const normalized = input.trim().toLowerCase();
@@ -60,16 +50,4 @@ export async function getChainByAlias(input) {
     }
     return Object.values(chains).find((chain) => chain.key === normalized || chain.name.toLowerCase() === normalized);
 }
-// export function getChainById(chainId: number): ChainMetadata {
-//   const found = Object.values(SUPPORTED_CHAINS).find((chain) => chain.id === chainId);
-//   if (!found) {
-//     throw new Error(`Unsupported chain id ${chainId}`);
-//   }
-//   return found;
-// }
-// export function reserveRawForChain(chainKey: ChainKey, config: PluginConfig): bigint {
-//   const reserve = config.minNativeReserve[chainKey] ?? "0";
-//   const decimals = chainKey === "polygon" ? 18 : 18;
-//   return parseUnits(reserve, decimals);
-// }
 //# sourceMappingURL=config.js.map

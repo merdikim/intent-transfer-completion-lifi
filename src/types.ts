@@ -107,8 +107,8 @@ export interface BalancePosition {
 }
 
 export interface BalancesResult {
-  raw: BalancePosition[];
-  formatted: BalancePosition[];
+  all: BalancePosition[];
+  filtered: BalancePosition[];
 }
 
 export interface GasPolicyResult {
@@ -171,7 +171,7 @@ export interface RoutePlan {
 
 export interface RouteCandidate {
   sourceBalance: BalancePosition;
-  quote: RouteQuote;
+  route?: RoutePlan;
 }
 
 export interface TransferPlan {

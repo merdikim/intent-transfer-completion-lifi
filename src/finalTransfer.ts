@@ -4,7 +4,6 @@ import {
 } from "viem";
 
 import { MissingSignerError } from "./errors.js";
-import { SUPPORTED_CHAINS } from "./config.js";
 import type { Hex } from "viem";
 import type { LocalWalletBinding, PluginConfig, TransferPlan } from "./types.js";
 

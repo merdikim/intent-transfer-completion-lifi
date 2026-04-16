@@ -77,6 +77,8 @@ export interface AssetRef {
     address: Address;
     decimals: number;
     chainId: number;
+    chainKey: string;
+    isNative: boolean;
 }
 export interface ResolvedIntent {
     parsed: ParsedIntent;
@@ -92,11 +94,15 @@ export interface BalancePosition {
     rawAmount: bigint;
     formattedAmount: string;
 }
+export interface BalancesResult {
+    raw: BalancePosition[];
+    formatted: BalancePosition[];
+}
 export interface GasPolicyResult {
     minimumReserveRaw: bigint;
     warnings: string[];
 }
-export interface RouteQuote {
+export interface Quote {
     tool?: string;
     toAmount: string;
     toAmountMin?: string;
@@ -149,7 +155,7 @@ export interface RouteStep {
     estimate?: RouteStepEstimate;
     transactionRequest?: RouteTransactionRequest;
 }
-export interface RoutePlan {
+export interface QuotePlan {
     id?: string;
     fromChainId: number;
     toChainId: number;
@@ -159,9 +165,10 @@ export interface RoutePlan {
     toAmount: string;
     steps: RouteStep[];
 }
-export interface RouteCandidate {
+export interface QuoteCandidate {
     sourceBalance: BalancePosition;
-    quote: RouteQuote;
+    quote: Quote;
+    route?: QuotePlan;
 }
 export interface TransferPlan {
     ownerAddress: Address;
@@ -171,9 +178,10 @@ export interface TransferPlan {
     requestedAmountRaw: bigint;
     currentTargetBalanceRaw: bigint;
     shortfallRaw: bigint;
-    route?: RoutePlan;
-    warnings: string[];
+    route?: QuotePlan;
 }
+export type RouteQuote = Quote;
+export type RoutePlan = QuotePlan;
 export interface ExecutedTransaction {
     chainId: number;
     hash: Hex;
@@ -247,8 +255,7 @@ export interface LifiClient {
         fromAddress: Address;
         fromAmount: bigint;
         toAddress?: Address;
-        slippageBps?: number;
-    }): Promise<RouteQuote>;
+    }): Promise<Quote>;
     getRoutes(params: {
         fromChain: number;
         toChain: number;
@@ -257,8 +264,7 @@ export interface LifiClient {
         fromAddress: Address;
         fromAmount: bigint;
         toAddress?: Address;
-        slippageBps?: number;
-    }): Promise<RoutePlan>;
+    }): Promise<QuotePlan>;
     getStatus(params: Record<string, string>): Promise<unknown>;
 }
 export interface SupportedToken {

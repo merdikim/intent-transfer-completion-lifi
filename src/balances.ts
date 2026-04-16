@@ -55,7 +55,7 @@ export async function getWalletBalances(
           address: NATIVE_TOKEN_ADDRESS,
           decimals: chain.nativeToken.decimals,
           chainId: chain.id,
-          chainKey: chain.key,
+          chainKey: chain.key
         },
         rawAmount: nativeAmount,
         formattedAmount: formatUnits(nativeAmount, chain.nativeToken.decimals)
@@ -102,8 +102,7 @@ export async function getWalletBalances(
               address: normalizedAddress,
               decimals: token.decimals,
               chainId: chain.id,
-              chainKey: chain.key,
-              //isNative: false
+              chainKey: chain.key
             },
             rawAmount,
             formattedAmount: formatUnits(rawAmount, token.decimals)
@@ -124,8 +123,8 @@ export async function getWalletBalances(
   });
 
   return {
-    raw: balances,
-    formatted: balances.filter((balance) => Number(balance.formattedAmount) > 0)
+    all: balances,
+    filtered: balances.filter((balance) => Number(balance.formattedAmount) > 0)
   }
 }
 
@@ -166,4 +165,3 @@ function dedupeTokens(tokens: SupportedToken[]): SupportedToken[] {
 
   return deduped;
 }
-

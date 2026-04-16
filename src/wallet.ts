@@ -8,9 +8,8 @@ import { mainnet } from "viem/chains";
 
 export async function resolveLocalWallet(walletPath: string): Promise<LocalWalletBinding> {
   try {
-    //const privateKey = readFileSync(walletPath, "utf-8");
-    const prvateKey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80" //This private key is for testing purposes only and should not be used in production. It is one of the default accounts provided by Hardhat for local development.
-    const account = privateKeyToAccount(prvateKey);  
+    const privateKey = readFileSync(walletPath, "utf-8");
+    const account = privateKeyToAccount(`0x${privateKey.trim()}`);  
     const walletClient = createWalletClient({
       account,
       chain: mainnet,

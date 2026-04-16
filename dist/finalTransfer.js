@@ -1,6 +1,5 @@
 import { encodeFunctionData, erc20Abi } from "viem";
 import { MissingSignerError } from "./errors.js";
-import { SUPPORTED_CHAINS } from "./config.js";
 export async function sendFinalTransfer(plan, _config, localWallet) {
     if (!localWallet) {
         throw new MissingSignerError();

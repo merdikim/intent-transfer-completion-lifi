@@ -3,6 +3,8 @@ import type { Address } from "viem";
 import { LifiApiError } from "./errors.js";
 import type { LifiClient, LifiToken, PluginConfig, RequestOptions, RoutePlan, RouteQuote } from "./types.js";
 
+export type { LifiClient } from "./types.js";
+
 export class HttpLifiClient implements LifiClient {
   constructor(private readonly config: PluginConfig) {}
 
@@ -22,7 +24,6 @@ export class HttpLifiClient implements LifiClient {
     fromAddress: Address;
     fromAmount: bigint;
     toAddress?: Address;
-    slippageBps?: number;
   }): Promise<RouteQuote> {
     return this.request<RouteQuote>("/quote", {
       query: {
@@ -32,8 +33,7 @@ export class HttpLifiClient implements LifiClient {
         toToken: params.toToken,
         fromAddress: params.fromAddress,
         toAddress: params.toAddress,
-        fromAmount: params.fromAmount.toString(),
-        slippage: ((params.slippageBps ?? this.config.defaultSlippageBps) / 100).toString()
+        fromAmount: params.fromAmount.toString()
       }
     });
   }
@@ -46,7 +46,6 @@ export class HttpLifiClient implements LifiClient {
     fromAddress: Address;
     fromAmount: bigint;
     toAddress?: Address;
-    slippageBps?: number;
   }): Promise<RoutePlan> {
     const response = await this.request<{ routes?: RoutePlan[] }>("/advanced/routes", {
       method: "POST",
@@ -58,12 +57,11 @@ export class HttpLifiClient implements LifiClient {
         fromAddress: params.fromAddress,
         toAddress: params.toAddress,
         fromAmount: params.fromAmount.toString(),
-        options: {
-          slippage: (params.slippageBps ?? this.config.defaultSlippageBps) / 100,
-          integrator: this.config.integrator,
-          allowSwitchChain: true,
-          maxPriceImpact: 0.2
-        }
+        // options: {
+        //   integrator: this.config.integrator,
+        //   allowSwitchChain: true,
+        //   maxPriceImpact: 0.2
+        // }
       }
     });
 
@@ -93,17 +91,25 @@ export class HttpLifiClient implements LifiClient {
       }
     }
 
+    const headers: Record<string, string> = {};
+    if (options.body) {
+      headers["content-type"] = "application/json";
+    }
+    if (this.config.lifiApiKey) {
+      headers["x-lifi-api-key"] = this.config.lifiApiKey;
+    }
+
     const response = await fetch(url, {
       method: options.method ?? "GET",
-      headers: {
-        "content-type": "application/json",
-        "x-lifi-api-key": this.config.lifiApiKey ?? ""
-      },
+      headers,
       body: options.body ? JSON.stringify(options.body) : undefined
     });
 
     if (!response.ok) {
-      throw new LifiApiError(`LI.FI request failed with status ${response.status}`);
+      const errorText = await response.text().catch(() => "");
+      throw new LifiApiError(
+        `LI.FI request failed with status ${response.status}${errorText ? `: ${errorText}` : ""}`
+      );
     }
 
     return (await response.json()) as T;
