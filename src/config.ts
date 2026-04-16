@@ -1,26 +1,27 @@
-import { parseUnits } from "viem";
-import type { ChainKey, ChainMetadata, PluginConfig, SupportedToken, TokenRegistryEntry } from "./types.js";
+import { parseUnits, zeroAddress } from "viem";
+import type { ChainMetadata, PluginConfig, SupportedToken } from "./types.js";
+import { DEFAULT_CONFIG } from "./constants.js";
 
-export const getSupportedChains = async() => {
+export const getSupportedChains = async (): Promise<Array<ChainMetadata>> => {
   try {
     const { chains } = await fetch(`${DEFAULT_CONFIG.lifiBaseUrl}/chains`).then((res) => res.json()) as { chains: ChainMetadata[] };
-    return chains.reduce((acc, chain) => {
-      acc[chain.key] = chain;
-      return acc;
-    }, {} as Record<ChainKey, ChainMetadata>);  
+    const evmChains = chains.filter((chain) => chain.chainType === "EVM");
+    return evmChains; 
   } catch (error) {
     console.error("Error fetching supported chains:", error);
+    throw new Error("Unable to load supported chains from LI.FI");
   }
-} 
+};
 
-export const getSupportedTokens = async(chain:number)/*: Promise<Array<SupportedToken>>*/ => {
+export const getSupportedTokens = async (chain: number): Promise<SupportedToken[]> => {
   try {
     const { tokens } = await fetch(`${DEFAULT_CONFIG.lifiBaseUrl}/tokens`).then((res) => res.json());
-    return tokens[chain]?? [] as Array<SupportedToken>;
+    return (tokens[chain] ?? []) as SupportedToken[];
   } catch (error) {
     console.error("Error fetching supported tokens:", error);
+    throw new Error("Unable to load supported tokens from LI.FI");
   }
-}
+};
 
 // export const pluginConfigSchema = {
 //   type: "object",
@@ -51,30 +52,6 @@ export const getSupportedTokens = async(chain:number)/*: Promise<Array<Supported
 //     }
 //   }
 // } as const;
-
-const DEFAULT_CONFIG: PluginConfig = {
-  lifiBaseUrl: "https://li.quest/v1",
-  lifiApiKey: undefined,
-  integrator: "openclaw-intent-transfer",
-  defaultSlippageBps: 100,
-  // Public RPC defaults are convenient for development but are typically rate-limited.
-  rpcUrls: {
-    ethereum: "https://cloudflare-eth.com/v1/mainnet",
-    base: "https://mainnet.base.org",
-    arbitrum: "https://arb1.arbitrum.io/rpc",
-    optimism: "https://mainnet.optimism.io",
-    polygon: "https://polygon.drpc.org"
-  },
-  minNativeReserve: {
-    ethereum: "0.003",
-    base: "0.002",
-    arbitrum: "0.002",
-    optimism: "0.002",
-    polygon: "1"
-  },
-  routeStatusPollIntervalMs: 10_000,
-  routeStatusTimeoutMs: 20 * 60 * 1000
-};
 
 export function loadConfig(
 

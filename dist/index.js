@@ -1,22 +1,22 @@
-import { loadConfig, } from "./config.js";
-import { HttpLifiClient } from "./lifiClient.js";
+import { getWalletBalances } from "./balances.js";
 import { parseIntent } from "./parseIntent.js";
 import { resolveIntent } from "./resolveAssets.js";
+import { resolveLocalWallet } from "./wallet.js";
 export async function completeTransferIntent(input) {
-    const config = loadConfig();
-    const lifiClient = new HttpLifiClient(config);
+    //const config = loadConfig();
+    //const lifiClient = new HttpLifiClient(config);
     const parsed = parseIntent(input.intent);
-    const resolvedIntent = await resolveIntent(parsed, config, lifiClient);
-    // let localWallet = await resolveLocalWallet(input.walletPath);
-    // if(!localWallet) throw new Error("No wallet found!")
-    // const ownerAddress = localWallet.address
-    // const balances = await getWalletBalances(ownerAddress, config);
+    const resolvedIntent = await resolveIntent(parsed);
+    const localWallet = await resolveLocalWallet(input.walletPath || "./wallet.json");
+    const ownerAddress = localWallet.address;
+    const balances = await getWalletBalances(ownerAddress);
+    console.log("balances", balances);
     // const plan = await planTransfer(resolvedIntent, ownerAddress, balances, lifiClient, config);
     // return executeTransferPlan(plan, config, localWallet);
-    return parsed;
+    return undefined; // Placeholder until planTransfer and executeTransferPlan are implemented 
 }
 completeTransferIntent({
-    intent: "transfer 100 USDC to merdikim.eth on Ethereum"
+    intent: "transfer 100 USDC to merkim.eth on Base"
 }).then(result => console.log(result)).catch(err => console.error(err));
 // export const plugin: OpenClawPlugin = {
 //   id: "intent-transfer-completion-lifi",
@@ -42,5 +42,5 @@ completeTransferIntent({
 //     }
 //   ]
 // };
-//export default plugin;
+// export default plugin;
 //# sourceMappingURL=index.js.map

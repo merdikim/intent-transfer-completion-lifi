@@ -1,3 +1,4 @@
-import type { ParsedIntent, PluginConfig, ResolvedIntent } from "./types.js";
-import type { LifiClient } from "./lifiClient.js";
-export declare function resolveIntent(parsed: ParsedIntent, config: PluginConfig, lifiClient: LifiClient): Promise<ResolvedIntent>;
+import type { AssetRef, ParsedIntent, ResolvedIntent, ResolvedRecipient } from "./types.js";
+export declare function resolveIntent(parsed: ParsedIntent): Promise<ResolvedIntent>;
+export declare function resolveRecipient(recipient: string): Promise<ResolvedRecipient>;
+export declare function resolveAsset(tokenSymbol: string, chainKey: number): Promise<AssetRef>;

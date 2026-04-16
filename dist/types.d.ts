@@ -1,5 +1,4 @@
 import type { Address, Chain, Hex, PublicClient, WalletClient } from "viem";
-export type ChainKey = "ethereum" | "base" | "arbitrum" | "optimism" | "polygon";
 export interface OpenClawWalletProvider {
     walletClient?: WalletClient;
     getWalletClient?: () => Promise<WalletClient> | WalletClient;
@@ -28,21 +27,56 @@ export interface ResolvedRecipient {
     resolvedAddress: Address;
     ensName?: string;
 }
+export interface MetamaskChainConfig {
+    chainId: string;
+    blockExplorerUrls: string[];
+    chainName: string;
+    nativeCurrency: {
+        name: string;
+        symbol: string;
+        decimals: number;
+    };
+    rpcUrls: string[];
+}
+export interface ChainNativeToken {
+    address: Address;
+    chainId: number;
+    symbol: string;
+    decimals: number;
+    name: string;
+    coinKey: string;
+    logoURI: string;
+    priceUSD: string;
+    tags: string[];
+    verificationStatus: string;
+    verificationStatusBreakdown: string[];
+}
 export interface ChainMetadata {
-    key: ChainKey;
+    key: string;
+    chainType?: "EVM";
     id: number;
     name: string;
-    chain: Chain;
-    nativeSymbol: string;
-    aliases: string[];
+    coin?: string;
+    mainnet?: boolean;
+    logoURI?: string;
+    tokenlistUrl?: string;
+    faucetUrls?: string[];
+    multicallAddress?: Address;
+    relayerSupported?: boolean;
+    metamask?: MetamaskChainConfig;
+    nativeToken?: ChainNativeToken;
+    diamondAddress?: Address;
+    permit2?: Address;
+    permit2Proxy?: Address;
+    chain?: Chain;
+    nativeSymbol?: string;
+    aliases?: string[];
 }
 export interface AssetRef {
     symbol: string;
     address: Address;
     decimals: number;
     chainId: number;
-    chainKey: ChainKey;
-    isNative: boolean;
 }
 export interface ResolvedIntent {
     parsed: ParsedIntent;
@@ -53,7 +87,7 @@ export interface ResolvedIntent {
 }
 export interface BalancePosition {
     chainId: number;
-    chainKey: ChainKey;
+    chainKey: string;
     token: AssetRef;
     rawAmount: bigint;
     formattedAmount: string;
@@ -157,8 +191,8 @@ export interface PluginConfig {
     lifiApiKey?: string;
     integrator: string;
     defaultSlippageBps: number;
-    rpcUrls: Partial<Record<ChainKey, string>>;
-    minNativeReserve: Partial<Record<ChainKey, string>>;
+    rpcUrls: Partial<Record<string, string>>;
+    minNativeReserve: Partial<Record<string, string>>;
     routeStatusPollIntervalMs: number;
     routeStatusTimeoutMs: number;
 }
@@ -173,8 +207,8 @@ export interface ClientBundle {
 export interface TokenRegistryEntry {
     symbol: string;
     decimals: number;
-    addresses: Partial<Record<ChainKey, Address>>;
-    nativeOn?: ChainKey[];
+    addresses: Partial<Record<string, Address>>;
+    nativeOn?: string[];
 }
 export interface LifiToken {
     chainId: number;
@@ -226,4 +260,15 @@ export interface LifiClient {
         slippageBps?: number;
     }): Promise<RoutePlan>;
     getStatus(params: Record<string, string>): Promise<unknown>;
+}
+export interface SupportedToken {
+    chainId: number;
+    address: Address;
+    symbol: string;
+    name: string;
+    decimals: number;
+    priceUSD: number;
+    logoURI: string;
+    verificationStatus: string;
+    verificationStatusBreakdown: [];
 }

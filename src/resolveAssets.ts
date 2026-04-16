@@ -2,7 +2,6 @@ import {
   Address,
   createPublicClient,
   getAddress,
-  GetEnsAddressReturnType,
   http,
   isAddress,
   parseUnits

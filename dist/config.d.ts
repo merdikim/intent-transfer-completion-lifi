@@ -1,6 +1,5 @@
-import type { ChainKey, ChainMetadata, PluginConfig } from "./types.js";
-export declare const SUPPORTED_CHAINS: () => Promise<Record<ChainKey, ChainMetadata> | undefined>;
+import type { ChainMetadata, PluginConfig, SupportedToken } from "./types.js";
+export declare const getSupportedChains: () => Promise<Array<ChainMetadata>>;
+export declare const getSupportedTokens: (chain: number) => Promise<SupportedToken[]>;
 export declare function loadConfig(): PluginConfig;
-export declare function getChainByAlias(input: string): ChainMetadata | undefined;
-export declare function getChainById(chainId: number): ChainMetadata;
-export declare function reserveRawForChain(chainKey: ChainKey, config: PluginConfig): bigint;
+export declare function getChainByAlias(input: string): Promise<ChainMetadata | undefined>;

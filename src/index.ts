@@ -10,18 +10,19 @@ import type { ExecutionResult, OpenClawPlugin, ToolInput } from "./types.js";
 
 export async function completeTransferIntent(
   input: ToolInput
-)/*: Promise<ExecutionResult>*/ {
-  const config = loadConfig();
-  const lifiClient = new HttpLifiClient(config);
+): Promise<ExecutionResult> {
+  //const config = loadConfig();
+  //const lifiClient = new HttpLifiClient(config);
   const parsed = parseIntent(input.intent);
   const resolvedIntent = await resolveIntent(parsed);
   const localWallet = await resolveLocalWallet(input.walletPath || "./wallet.json");
     
   const ownerAddress = localWallet.address
-  const balances = await getWalletBalances(ownerAddress, config);
+  const balances = await getWalletBalances(ownerAddress);
+  console.log("balances", balances)
   // const plan = await planTransfer(resolvedIntent, ownerAddress, balances, lifiClient, config);
   // return executeTransferPlan(plan, config, localWallet);
-  return parsed
+  return undefined as unknown as ExecutionResult; // Placeholder until planTransfer and executeTransferPlan are implemented 
 }
 
 completeTransferIntent({

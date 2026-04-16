@@ -5,7 +5,7 @@ export declare class UnsupportedChainError extends Error {
     constructor(chain: string);
 }
 export declare class UnsupportedTokenError extends Error {
-    constructor(token: string, chain: string);
+    constructor(token: string, chain: number);
 }
 export declare class RecipientResolutionError extends Error {
     constructor(recipient: string);

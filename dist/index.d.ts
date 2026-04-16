@@ -1,2 +1,2 @@
-import type { ToolInput } from "./types.js";
-export declare function completeTransferIntent(input: ToolInput): Promise<import("./types.js").ParsedIntent>;
+import type { ExecutionResult, ToolInput } from "./types.js";
+export declare function completeTransferIntent(input: ToolInput): Promise<ExecutionResult>;

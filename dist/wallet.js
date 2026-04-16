@@ -1,36 +1,28 @@
 import { MissingSignerError } from "./errors.js";
-function isWalletClient(candidate) {
-    return typeof candidate === "object" && candidate !== null && "sendTransaction" in candidate;
-}
-async function resolveFromProvider(provider) {
-    if (!provider) {
-        return undefined;
-    }
-    if (isWalletClient(provider.walletClient)) {
-        return provider.walletClient;
-    }
-    if (provider.getWalletClient) {
-        const candidate = await provider.getWalletClient();
-        if (isWalletClient(candidate)) {
-            return candidate;
+import { createWalletClient, http } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
+import { mainnet } from "viem/chains";
+export async function resolveLocalWallet(walletPath) {
+    try {
+        //const privateKey = readFileSync(walletPath, "utf-8");
+        const prvateKey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"; //This private key is for testing purposes only and should not be used in production. It is one of the default accounts provided by Hardhat for local development.
+        const account = privateKeyToAccount(prvateKey);
+        const walletClient = createWalletClient({
+            account,
+            chain: mainnet,
+            transport: http()
+        });
+        if (!walletClient) {
+            throw new MissingSignerError();
         }
+        return {
+            address: account.address,
+            walletClient
+        };
     }
-    return undefined;
-}
-export async function resolveLocalWallet(context) {
-    const walletClient = (await resolveFromProvider(context)) ??
-        (await resolveFromProvider(context?.wallet)) ??
-        (await resolveFromProvider(context?.openclaw));
-    if (!walletClient) {
-        throw new MissingSignerError();
+    catch (error) {
+        console.error("Error resolving local wallet:", error);
+        throw new Error("Failed to resolve local wallet");
     }
-    const address = walletClient.account?.address ?? (await walletClient.getAddresses?.())?.[0];
-    if (!address) {
-        throw new MissingSignerError();
-    }
-    return {
-        address: address,
-        walletClient
-    };
 }
 //# sourceMappingURL=wallet.js.map
