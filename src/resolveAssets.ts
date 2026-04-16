@@ -21,7 +21,7 @@ export async function resolveIntent(
     throw new UnsupportedChainError(parsed.requestedChain);
   }
 
-  const asset = await resolveAsset(parsed.tokenSymbol, chain.id);
+  const asset = await resolveAsset(parsed.tokenSymbol, chain.id, chain.key);
   const recipient = await resolveRecipient(parsed.recipient);
   const amountRaw = parseUnits(parsed.amount, asset.decimals);
 
@@ -53,13 +53,14 @@ export async function resolveRecipient(recipient: string): Promise<ResolvedRecip
 
 export async function resolveAsset(
   tokenSymbol: string,
-  chainKey:number
+  chainId: number,
+  chainKey: string
 ): Promise<AssetRef> {
   const normalizedSymbol = tokenSymbol.toUpperCase();
-  const token = await getSupportedTokens(chainKey).then((tokens:Array<SupportedToken>) => tokens.find(t => t.symbol.toUpperCase() === normalizedSymbol));
+  const token = await getSupportedTokens(chainId).then((tokens:Array<SupportedToken>) => tokens.find(t => t.symbol.toUpperCase() === normalizedSymbol));
 
   if (!token) {
-    throw new UnsupportedTokenError(tokenSymbol, chainKey);
+    throw new UnsupportedTokenError(tokenSymbol, chainId);
   }
 
   return {
@@ -67,6 +68,7 @@ export async function resolveAsset(
     address: token.address,
     decimals: token.decimals,
     chainId: token.chainId,
+    chainKey: chainKey,
     //isNative: token.address === NATIVE_TOKEN_ADDRESS
   };
 }

@@ -1,4 +1,4 @@
-import { getWalletBalances } from "./balances.js";
+import { getAssetBalance, getWalletBalances } from "./balances.js";
 import { loadConfig, /*pluginConfigSchema*/ } from "./config.js";
 import { executeTransferPlan } from "./executePlan.js";
 import { HttpLifiClient } from "./lifiClient.js";
@@ -16,11 +16,16 @@ export async function completeTransferIntent(
   const parsed = parseIntent(input.intent);
   const resolvedIntent = await resolveIntent(parsed);
   const localWallet = await resolveLocalWallet(input.walletPath || "./wallet.json");
-    
   const ownerAddress = localWallet.address
-  const balances = await getWalletBalances(ownerAddress);
-  console.log("balances", balances)
-  // const plan = await planTransfer(resolvedIntent, ownerAddress, balances, lifiClient, config);
+
+  const assetBalance = await getAssetBalance(ownerAddress, resolvedIntent.asset)
+  if (assetBalance > resolvedIntent.amountRaw) {
+    console.log("just transfer")
+    return true as unknown as ExecutionResult; // Placeholder until executeTransferPlan is implemented
+  }
+
+  const balances = { raw: [] }; //await getWalletBalances(ownerAddress);
+  const plan = await planTransfer(resolvedIntent, ownerAddress, balances.raw, assetBalance);
   // return executeTransferPlan(plan, config, localWallet);
   return undefined as unknown as ExecutionResult; // Placeholder until planTransfer and executeTransferPlan are implemented 
 }

@@ -86,7 +86,7 @@ export interface AssetRef {
   address: Address;
   decimals: number;
   chainId: number;
-  // chainKey: ChainKey | string;
+  chainKey: string;
   // isNative: boolean;
 }
 
@@ -183,7 +183,6 @@ export interface TransferPlan {
   currentTargetBalanceRaw: bigint;
   shortfallRaw: bigint;
   route?: RoutePlan;
-  warnings: string[];
 }
 
 export interface ExecutedTransaction {
@@ -269,7 +268,6 @@ export interface LifiClient {
     fromAddress: Address;
     fromAmount: bigint;
     toAddress?: Address;
-    slippageBps?: number;
   }): Promise<RouteQuote>;
   getRoutes(params: {
     fromChain: number;
@@ -279,7 +277,6 @@ export interface LifiClient {
     fromAddress: Address;
     fromAmount: bigint;
     toAddress?: Address;
-    slippageBps?: number;
   }): Promise<RoutePlan>;
   getStatus(params: Record<string, string>): Promise<unknown>;
 }

@@ -1,40 +1,36 @@
-import { formatUnits } from "viem";
+import { formatUnits, zeroAddress } from "viem";
 import type { Address } from "viem";
-
 import { getAssetBalance } from "./balances.js";
 import { InsufficientFundsError } from "./errors.js";
-import { spendableAmount, validateTargetGas } from "./gasPolicy.js";
-import type { LifiClient } from "./lifiClient.js";
 import type {
   AssetRef,
   BalancePosition,
   PluginConfig,
   ResolvedIntent,
   RouteCandidate,
-  TransferPlan
+  TransferPlan,
+  LifiClient
 } from "./types.js";
+import { loadConfig } from "./config.js";
+import { HttpLifiClient } from "./lifiClient.js";
 
 export async function planTransfer(
   intent: ResolvedIntent,
   ownerAddress: Address,
   balances: BalancePosition[],
-  lifiClient: LifiClient,
-  config: PluginConfig,
-  balanceReader: typeof getAssetBalance = getAssetBalance
+  assetBalance: bigint
 ): Promise<TransferPlan> {
-  const targetBalanceRaw = await balanceReader(ownerAddress, intent.asset, config);
-  const shortfallRaw = intent.amountRaw > targetBalanceRaw ? intent.amountRaw - targetBalanceRaw : 0n;
-  const targetNativeSymbol = intent.chain.nativeSymbol;
+  const shortfallRaw = intent.amountRaw > assetBalance ? intent.amountRaw - assetBalance : 0n;
+  const targetNativeSymbol = intent.chain.nativeSymbol!;
   const targetNativeAsset: AssetRef = {
     symbol: targetNativeSymbol,
-    address: "0x0000000000000000000000000000000000000000",
+    address: zeroAddress,
     decimals: 18,
     chainId: intent.chain.id,
     chainKey: intent.chain.key,
-    isNative: true
+    // isNative: true
   };
-  const targetNativeBalance = await balanceReader(ownerAddress, targetNativeAsset, config);
-  const warnings = validateTargetGas(intent.asset, targetNativeBalance, config);
+  const targetNativeBalance = await getAssetBalance(ownerAddress, targetNativeAsset);
 
   if (shortfallRaw === 0n) {
     return {
@@ -43,13 +39,14 @@ export async function planTransfer(
       targetChain: intent.chain,
       targetAsset: intent.asset,
       requestedAmountRaw: intent.amountRaw,
-      currentTargetBalanceRaw: targetBalanceRaw,
-      shortfallRaw,
-      warnings
+      currentTargetBalanceRaw: assetBalance,
+      shortfallRaw
     };
   }
 
-  const candidate = await selectBestRouteCandidate(intent, ownerAddress, balances, shortfallRaw, lifiClient, config);
+  const lifiClient = new HttpLifiClient(loadConfig());
+
+  const candidate = await selectBestRouteCandidate(intent, ownerAddress, balances, shortfallRaw, lifiClient);
   const route = await lifiClient.getRoutes({
     fromChain: candidate.sourceBalance.chainId,
     toChain: intent.chain.id,
@@ -57,8 +54,7 @@ export async function planTransfer(
     toToken: intent.asset.address,
     fromAddress: ownerAddress,
     toAddress: ownerAddress,
-    fromAmount: spendableAmount(candidate.sourceBalance, config),
-    slippageBps: config.defaultSlippageBps
+    fromAmount: candidate.sourceBalance.rawAmount,
   });
 
   return {
@@ -67,10 +63,9 @@ export async function planTransfer(
     targetChain: intent.chain,
     targetAsset: intent.asset,
     requestedAmountRaw: intent.amountRaw,
-    currentTargetBalanceRaw: targetBalanceRaw,
+    currentTargetBalanceRaw: assetBalance,
     shortfallRaw,
     route,
-    warnings
   };
 }
 
@@ -80,9 +75,8 @@ async function selectBestRouteCandidate(
   balances: BalancePosition[],
   shortfallRaw: bigint,
   lifiClient: LifiClient,
-  config: PluginConfig
 ): Promise<RouteCandidate> {
-  const candidates = balances.filter((position) => spendableAmount(position, config) > 0n);
+  const candidates = balances.filter((position) => position.rawAmount > 0n);
   if (candidates.length === 0) {
     throw new InsufficientFundsError("No spendable balances were found across configured chains.");
   }
@@ -91,7 +85,7 @@ async function selectBestRouteCandidate(
   let bestAmount = 0n;
 
   for (const position of candidates) {
-    const fromAmount = spendableAmount(position, config);
+    const fromAmount = position.rawAmount > shortfallRaw ? shortfallRaw : position.rawAmount;
     const quote = await lifiClient.getQuote({
       fromChain: position.chainId,
       toChain: intent.chain.id,
@@ -99,8 +93,7 @@ async function selectBestRouteCandidate(
       toToken: intent.asset.address,
       fromAddress: ownerAddress,
       toAddress: ownerAddress,
-      fromAmount,
-      slippageBps: config.defaultSlippageBps
+      fromAmount
     });
 
     const toAmount = BigInt(quote.toAmount);

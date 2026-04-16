@@ -3,11 +3,12 @@ import {
   erc20Abi,
   formatUnits,
   getAddress,
-  http
+  http,
+  zeroAddress
 } from "viem";
 import type { Address, Chain, PublicClient } from "viem";
 import { getSupportedChains, getSupportedTokens } from "./config.js";
-import type { BalancePosition, BalancesResult, SupportedToken } from "./types.js";
+import type { AssetRef, BalancePosition, BalancesResult, SupportedToken } from "./types.js";
 import { LIFI_CHAIN_NAME_TO_VIEM_CHAIN, NATIVE_TOKEN_ADDRESS } from "./constants.js";
 
 function clientFor(chain: Chain, rpcUrl: string | undefined): PublicClient {
@@ -53,7 +54,8 @@ export async function getWalletBalances(
           symbol: chain.nativeToken.symbol,
           address: NATIVE_TOKEN_ADDRESS,
           decimals: chain.nativeToken.decimals,
-          chainId: chain.id
+          chainId: chain.id,
+          chainKey: chain.key,
         },
         rawAmount: nativeAmount,
         formattedAmount: formatUnits(nativeAmount, chain.nativeToken.decimals)
@@ -100,7 +102,7 @@ export async function getWalletBalances(
               address: normalizedAddress,
               decimals: token.decimals,
               chainId: chain.id,
-              //chainKey: chain.key,
+              chainKey: chain.key,
               //isNative: false
             },
             rawAmount,
@@ -127,32 +129,26 @@ export async function getWalletBalances(
   }
 }
 
+export async function getAssetBalance(
+  ownerAddress: Address,
+  asset: AssetRef
+): Promise<bigint> {
+  const viemChain = LIFI_CHAIN_NAME_TO_VIEM_CHAIN[asset.chainKey];
+  if (!viemChain) {
+    throw new Error(`Unsupported chain key: ${asset.chainKey}`);
+  }
+  const client = clientFor(viemChain, "");
+  if (asset.address === zeroAddress) {
+    return client.getBalance({ address: ownerAddress });
+  }
 
-
-
-
-// export async function getAssetBalance(
-//   ownerAddress: Address,
-//   asset: AssetRef,
-//   config: PluginConfig
-// ): Promise<bigint> {
-//   const rpcUrl = config.rpcUrls[asset.chainKey];
-//   if (!rpcUrl) {
-//     throw new Error(`Missing RPC URL for ${asset.chainKey}`);
-//   }
-
-//   const client = clientFor(asset.chainKey, rpcUrl);
-//   if (asset.isNative) {
-//     return client.getBalance({ address: ownerAddress });
-//   }
-
-//   return (await client.readContract({
-//     abi: erc20Abi,
-//     address: asset.address,
-//     functionName: "balanceOf",
-//     args: [ownerAddress]
-//   })) as bigint;
-// }
+  return (await client.readContract({
+    abi: erc20Abi,
+    address: asset.address,
+    functionName: "balanceOf",
+    args: [ownerAddress]
+  })) as bigint;
+}
 
 function dedupeTokens(tokens: SupportedToken[]): SupportedToken[] {
   const seen = new Set<string>();
