@@ -1,18 +1,16 @@
-import { formatUnits, zeroAddress } from "viem";
+import { formatUnits } from "viem";
 import type { Address } from "viem";
-import { getAssetBalance } from "./balances.js";
 import { InsufficientFundsError } from "./errors.js";
 import type {
-  AssetRef,
   BalancePosition,
-  PluginConfig,
   ResolvedIntent,
   TransferPlan,
-  LifiClient,
   RouteCandidate
 } from "./types.js";
 import { loadConfig } from "./config.js";
 import { HttpLifiClient } from "./lifiClient.js";
+
+const BPS_DENOMINATOR = 10_000n;
 
 export async function planTransfer(
   intent: ResolvedIntent,
@@ -20,23 +18,21 @@ export async function planTransfer(
   balances: BalancePosition[],
   assetBalance: bigint
 ): Promise<TransferPlan> {
-  const shortfallRaw = intent.amountRaw > assetBalance ? intent.amountRaw - assetBalance : 0n;
+  const shortfallRaw = intent.amountRaw - assetBalance //intent.amountRaw > assetBalance ? intent.amountRaw - assetBalance : 0n;
 
-  if (shortfallRaw === 0n) {
-    return {
-      ownerAddress,
-      recipient: intent.recipient,
-      targetChain: intent.chain,
-      targetAsset: intent.asset,
-      requestedAmountRaw: intent.amountRaw,
-      currentTargetBalanceRaw: assetBalance,
-      shortfallRaw
-    };
-  }
+  // if (shortfallRaw === 0n) {
+  //   return {
+  //     ownerAddress,
+  //     recipient: intent.recipient,
+  //     targetChain: intent.chain,
+  //     targetAsset: intent.asset,
+  //     requestedAmountRaw: intent.amountRaw,
+  //     currentTargetBalanceRaw: assetBalance,
+  //     shortfallRaw
+  //   };
+  // }
 
-  const lifiClient = new HttpLifiClient(loadConfig());
-
-  const candidate = await selectBestRouteCandidate(intent, ownerAddress, balances, shortfallRaw, lifiClient);
+  const candidate = await selectBestRouteCandidate(intent, ownerAddress, balances, shortfallRaw);
   return {
     ownerAddress,
     recipient: intent.recipient,
@@ -53,50 +49,44 @@ async function selectBestRouteCandidate(
   intent: ResolvedIntent,
   ownerAddress: Address,
   balances: BalancePosition[],
-  shortfallRaw: bigint,
-  lifiClient: LifiClient
+  shortfallRaw: bigint
 ): Promise<RouteCandidate> {
-  const candidates = balances.filter((position) => position.rawAmount > 0n);
-  if (candidates.length === 0) {
+  const config = loadConfig();
+  const lifiClient = new HttpLifiClient(config);
+
+  if (balances.length === 0) {
     throw new InsufficientFundsError("No spendable balances were found across configured chains.");
   }
 
   let bestCandidate: RouteCandidate | undefined;
   let bestAmount = 0n;
 
-  for (const position of candidates) {
-    const fromAmount = position.rawAmount > shortfallRaw ? shortfallRaw : position.rawAmount;
+  //slight buffer to increase chances of route `toAmount` meeting or exceeding `shortfallRaw` after accounting for potential slippage and fees, without being so large as to cause excessive unnecessary transfers
+  const bufferedShortfallRaw = applyBufferBps(shortfallRaw, BigInt(config.routeFromAmountBufferBps));
+
+  for (const balance of balances) {
+    const fromAmount = balance.rawAmount > bufferedShortfallRaw ? bufferedShortfallRaw : balance.rawAmount;
     const routes = await lifiClient.getRoutes({
-      fromChain: position.chainId,
+      fromChain: balance.chainId,
       toChain: intent.chain.id,
-      fromToken: position.token.address,
+      fromToken: balance.token.address,
       toToken: intent.asset.address,
       fromAddress: ownerAddress,
       toAddress: ownerAddress,
       fromAmount
     });
 
-    console.log("routes", routes)
-    return 
-    //Testing here //
 
-    if (routes.routes.length === 0) {
-      throw new Error(`No LI.FI routes found to bridge ${formatUnits(fromAmount, position.token.decimals)} ${
-        position.token.symbol
-      } on ${position.token.chainKey} to ${intent.asset.symbol} on ${intent.chain.name}.`
-      );
-    }
-
-    const route = routes.routes[0];
+    const route = routes[0];
 
     const toAmount = BigInt(route.toAmount);
     if (toAmount > bestAmount) {
       bestAmount = toAmount;
-      bestCandidate = { sourceBalance: position, route };
+      bestCandidate = { sourceBalance: balance, route };
     }
 
     if (toAmount >= shortfallRaw) {
-      return { sourceBalance: position, route };
+      return { sourceBalance: balance, route };
     }
   }
 
@@ -111,4 +101,12 @@ async function selectBestRouteCandidate(
       intent.chain.name
     }.`
   );
+}
+
+function applyBufferBps(amount: bigint, bufferBps: bigint): bigint {
+  if (amount <= 0n || bufferBps <= 0n) {
+    return amount;
+  }
+
+  return (amount * (BPS_DENOMINATOR + bufferBps) + (BPS_DENOMINATOR - 1n)) / BPS_DENOMINATOR;
 }

@@ -4,10 +4,14 @@ import {
   erc20Abi,
   getAddress,
   http,
-  maxUint256
+  maxUint256,
+  zeroAddress,
 } from "viem";
 import { getAssetBalance } from "./balances.js";
+import { loadConfig, getSupportedChains } from "./config.js";
 import { MissingSignerError, ExecutionError } from "./errors.js";
+import { LIFI_CHAIN_NAME_TO_VIEM_CHAIN } from "./constants.js";
+import { HttpLifiClient } from "./lifiClient.js";
 import { sendFinalTransfer } from "./finalTransfer.js";
 import { waitForBalanceIncrease } from "./statusTracker.js";
 import type { Address, Hex } from "viem";
@@ -15,7 +19,6 @@ import type {
   ExecutedTransaction,
   ExecutionResult,
   LocalWalletBinding,
-  PluginConfig,
   RouteStep,
   TransferPlan
 } from "./types.js";
@@ -45,13 +48,12 @@ export async function executeTransferPlan(
     });
   }
 
-  const finalTransferHash = '0xjvjek'; // Placeholder until sendFinalTransfer is implemented
-  // // await sendFinalTransfer(plan, localWallet);
-  // transactions.push({
-  //   chainId: plan.targetChain.id,
-  //   hash: finalTransferHash,
-  //   kind: "final-transfer"
-  // });
+  const finalTransferHash = await sendFinalTransfer(plan, localWallet);
+  transactions.push({
+    chainId: plan.targetChain.id,
+    hash: finalTransferHash,
+    kind: "final-transfer"
+  });
 
   return {
     executed: true,
@@ -67,36 +69,47 @@ async function executeRouteStep(
   ownerAddress: Address,
   localWallet: LocalWalletBinding
 ): Promise<ExecutedTransaction[]> {
-  const chain = Object.values(SUPPORTED_CHAINS).find((item) => item.id === step.action.fromChainId);
-  if (!chain) {
+  const config = loadConfig();
+  const lifiClient = new HttpLifiClient(config);
+  const supportedChains = await getSupportedChains();
+  const chain = supportedChains.find((item) => item.id === step.action.fromChainId);
+  const viemChain = chain ? LIFI_CHAIN_NAME_TO_VIEM_CHAIN[chain.key] : undefined;
+  if (!chain || !viemChain) {
     throw new ExecutionError(`Unsupported route step chain ${step.action.fromChainId}`);
   }
 
   const rpcUrl = config.rpcUrls[chain.key];
-  if (!rpcUrl) {
-    throw new ExecutionError(`Missing RPC URL for ${chain.key}`);
-  }
-
   const publicClient = createPublicClient({
-    chain: chain.chain,
-    transport: http(rpcUrl)
+    chain: viemChain,
+    transport: http(rpcUrl ?? viemChain.rpcUrls.default.http[0])
   });
+  const walletClient = localWallet.getWalletClient(viemChain, rpcUrl);
   const transactions: ExecutedTransaction[] = [];
+  const populatedStep = await lifiClient.populateStepTransaction({
+    ...step,
+    action: {
+      ...step.action,
+      fromAddress: step.action.fromAddress ?? ownerAddress,
+      toAddress: step.action.toAddress ?? ownerAddress
+    }
+  });
 
-  const approvalAddress = step.estimate?.approvalAddress;
-  if (approvalAddress && step.action.fromToken.address !== getAddress("0x0000000000000000000000000000000000000000")) {
+  const approvalAddress = populatedStep.estimate?.approvalAddress;
+  const fromTokenAddress = getAddress(populatedStep.action.fromToken.address);
+  if (approvalAddress && fromTokenAddress !== zeroAddress) {
     const allowance = (await publicClient.readContract({
       abi: erc20Abi,
-      address: step.action.fromToken.address,
+      address: fromTokenAddress,
       functionName: "allowance",
       args: [ownerAddress, approvalAddress]
     })) as bigint;
 
-    if (allowance < BigInt(step.action.fromAmount)) {
-      const approvalHash = await localWallet.walletClient.sendTransaction({
-        account: localWallet.address,
-        chain: chain.chain,
-        to: step.action.fromToken.address,
+    if (allowance < BigInt(populatedStep.action.fromAmount)) {
+      const approvalHash = await walletClient.sendTransaction({
+        account: localWallet.account,
+        chain: viemChain,
+        kzg: undefined,
+        to: fromTokenAddress,
         data: encodeFunctionData({
           abi: erc20Abi,
           functionName: "approve",
@@ -108,16 +121,17 @@ async function executeRouteStep(
     }
   }
 
-  const transactionRequest = step.transactionRequest;
+  const transactionRequest = populatedStep.transactionRequest;
   if (!transactionRequest) {
     throw new ExecutionError(
-      `LI.FI route step for ${step.toolDetails?.name ?? step.tool ?? "unknown tool"} did not include a transaction request.`
+      `LI.FI route step for ${populatedStep.toolDetails?.name ?? populatedStep.tool ?? "unknown tool"} did not include a transaction request after stepTransaction population.`
     );
   }
 
-  const txHash = await localWallet.walletClient.sendTransaction({
-    account: localWallet.address,
-    chain: chain.chain,
+  const txHash = await walletClient.sendTransaction({
+    account: localWallet.account,
+    chain: viemChain,
+    kzg: undefined,
     to: transactionRequest.to,
     data: transactionRequest.data,
     value: transactionRequest.value ? BigInt(transactionRequest.value) : undefined,

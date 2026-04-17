@@ -3,7 +3,6 @@ import { getChainByAlias, getSupportedTokens } from "./config.js";
 import { RecipientResolutionError, UnsupportedChainError, UnsupportedTokenError } from "./errors.js";
 import { mainnet } from "viem/chains";
 import { normalize } from "viem/ens";
-import { NATIVE_TOKEN_ADDRESS } from "./constants.js";
 export async function resolveIntent(parsed) {
     const chain = await getChainByAlias(parsed.requestedChain);
     if (!chain) {
@@ -42,8 +41,7 @@ export async function resolveAsset(tokenSymbol, chainId, chainKey) {
         address: token.address,
         decimals: token.decimals,
         chainId: token.chainId,
-        chainKey: chainKey,
-        isNative: token.address === NATIVE_TOKEN_ADDRESS
+        chainKey: chainKey
     };
 }
 //# sourceMappingURL=resolveAssets.js.map

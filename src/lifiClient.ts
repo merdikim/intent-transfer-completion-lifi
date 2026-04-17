@@ -1,7 +1,15 @@
 import type { Address } from "viem";
 
 import { LifiApiError } from "./errors.js";
-import type { LifiClient, LifiToken, PluginConfig, RequestOptions, RoutePlan, RouteQuote } from "./types.js";
+import type {
+  LifiClient,
+  LifiToken,
+  PluginConfig,
+  RequestOptions,
+  RoutePlan,
+  RouteQuote,
+  RouteStep,
+} from "./types.js";
 
 export type { LifiClient } from "./types.js";
 
@@ -46,7 +54,7 @@ export class HttpLifiClient implements LifiClient {
     fromAddress: Address;
     fromAmount: bigint;
     toAddress?: Address;
-  }): Promise<RoutePlan> {
+  }): Promise<RoutePlan[]> {
     const response = await this.request<{ routes?: RoutePlan[] }>("/advanced/routes", {
       method: "POST",
       body: {
@@ -65,12 +73,25 @@ export class HttpLifiClient implements LifiClient {
       }
     });
 
-    const route = response.routes?.[0];
-    if (!route) {
-      throw new LifiApiError("LI.FI did not return a route.");
+    if (!response.routes || response.routes.length === 0) {
+      throw new LifiApiError("LI.FI did not return any routes.");
     }
 
-    return route;
+    return response.routes
+  }
+
+  async populateStepTransaction(step: RouteStep): Promise<RouteStep> {
+    return this.request<RouteStep>("/advanced/stepTransaction", {
+      method: "POST",
+      body: {
+        ...step,
+        action: {
+          ...step.action,
+          fromAddress: step.action.fromAddress,
+          toAddress: step.action.toAddress,
+        },
+      }
+    });
   }
 
   async getStatus(params: Record<string, string>): Promise<unknown> {

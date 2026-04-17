@@ -1,4 +1,4 @@
-import type { Address, Chain, Hex, PublicClient, WalletClient } from "viem";
+import type { Address, Chain, Hex, PublicClient, WalletClient, Account } from "viem";
 
 export interface OpenClawWalletProvider {
   walletClient?: WalletClient;
@@ -125,7 +125,9 @@ export interface RouteQuote {
 }
 
 export interface RouteTransactionRequest {
+  from?: Address;
   to: Address;
+  chainId?: number;
   data?: Hex;
   value?: string;
   gasLimit?: string;
@@ -133,9 +135,13 @@ export interface RouteTransactionRequest {
 }
 
 export interface RouteStepEstimate {
+  fromAmount?: string;
   toAmount?: string;
   toAmountMin?: string;
   approvalAddress?: Address;
+  data?: {
+    estimatedGas?: number;
+  };
 }
 
 export interface RouteStepAction {
@@ -146,6 +152,7 @@ export interface RouteStepAction {
   fromAmount: string;
   toAddress?: Address;
   fromAddress?: Address;
+  slippage?: number;
 }
 
 export interface RouteStep {
@@ -204,6 +211,7 @@ export interface PluginConfig {
   lifiApiKey?: string;
   integrator: string;
   defaultSlippageBps: number;
+  routeFromAmountBufferBps: number;
   rpcUrls: Partial<Record<string, string>>;
   minNativeReserve: Partial<Record<string, string>>;
   routeStatusPollIntervalMs: number;
@@ -211,8 +219,9 @@ export interface PluginConfig {
 }
 
 export interface LocalWalletBinding {
+  account: Account;
   address: Address;
-  walletClient: WalletClient;
+  getWalletClient: (chain: Chain, rpcUrl?: string) => WalletClient;
 }
 
 export interface ClientBundle {
@@ -277,7 +286,8 @@ export interface LifiClient {
     fromAddress: Address;
     fromAmount: bigint;
     toAddress?: Address;
-  }): Promise<RoutePlan>;
+  }): Promise<RoutePlan[]>;
+  populateStepTransaction(step: RouteStep): Promise<RouteStep>;
   getStatus(params: Record<string, string>): Promise<unknown>;
 }
 

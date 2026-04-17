@@ -28,6 +28,7 @@ export const pluginConfigSchema = {
     lifiApiKey: { type: "string" },
     lifiBaseUrl: { type: "string", default: "https://li.quest/v1" },
     integrator: { type: "string", default: "openclaw-intent-transfer" },
+    routeFromAmountBufferBps: { type: "number", default: 500 },
   }
 } as const;
 
@@ -53,5 +54,5 @@ export async function getChainByAlias(input: string): Promise<ChainMetadata | un
     throw new Error("Unable to load supported chains from LI.FI");
   }
 
-  return Object.values(chains).find((chain) => chain.key === normalized || chain.name.toLowerCase() === normalized);
+  return Object.values(chains).find((chain) => chain.key === normalized || chain.name.toLowerCase() === normalized || normalized.includes(chain.key) || normalized.includes(chain.name.toLowerCase()));
 }

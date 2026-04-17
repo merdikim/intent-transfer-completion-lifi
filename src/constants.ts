@@ -62,12 +62,15 @@ import { PluginConfig } from "./types.js";
 
 export const NATIVE_TOKEN_ADDRESS = zeroAddress;
 
+export const COINS: string[] = ["USDC", "USDT", "DAI"];
+
 
 export const DEFAULT_CONFIG: PluginConfig = {
   lifiBaseUrl: "https://li.quest/v1",
   lifiApiKey: undefined,
   integrator: "openclaw-intent-transfer",
   defaultSlippageBps: 100,
+  routeFromAmountBufferBps: 500,
   // Public RPC defaults are convenient for development but are typically rate-limited.
   rpcUrls: {
     ethereum: "https://cloudflare-eth.com/v1/mainnet",
@@ -101,8 +104,8 @@ export const LIFI_CHAIN_NAME_TO_VIEM_CHAIN: Record<string, Chain> = {
   // bls: blast,
   // bob: boba,
   // boc: bob,
-  // bsc: bsc,
-  // cel: celo,
+  bsc: bsc,
+  cel: celo,
   // crn: corn,
   // cro: cronos,
   // dai: gnosis,
@@ -131,17 +134,17 @@ export const LIFI_CHAIN_NAME_TO_VIEM_CHAIN: Record<string, Chain> = {
   // meg: megaeth,
   // mnt: mantle,
   // mod: mode,
-  // mon: monad,
+  mon: monad,
   // moo: moonbeam,
   // mop: morph,
-  // opt: optimism,
+  opt: optimism,
   // opst: optimismSepolia,
   // opb: opBNB,
-  // pol: polygon,
+  pol: polygon,
   // pla: plasma,
   // ron: ronin,
   // rsk: rootstock,
-  // scl: scroll,
+  scl: scroll,
   // sei: sei,
   // soe: soneium,
   // son: sonic,

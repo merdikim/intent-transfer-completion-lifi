@@ -1,11 +1,13 @@
-import { arbitrum, base, } from "viem/chains";
+import { arbitrum, base, bsc, celo, monad, optimism, polygon, scroll, } from "viem/chains";
 import { zeroAddress } from "viem";
 export const NATIVE_TOKEN_ADDRESS = zeroAddress;
+export const COINS = ["USDC", "USDT", "DAI"];
 export const DEFAULT_CONFIG = {
     lifiBaseUrl: "https://li.quest/v1",
     lifiApiKey: undefined,
     integrator: "openclaw-intent-transfer",
     defaultSlippageBps: 100,
+    routeFromAmountBufferBps: 500,
     // Public RPC defaults are convenient for development but are typically rate-limited.
     rpcUrls: {
         ethereum: "https://cloudflare-eth.com/v1/mainnet",
@@ -38,8 +40,8 @@ export const LIFI_CHAIN_NAME_TO_VIEM_CHAIN = {
     // bls: blast,
     // bob: boba,
     // boc: bob,
-    // bsc: bsc,
-    // cel: celo,
+    bsc: bsc,
+    cel: celo,
     // crn: corn,
     // cro: cronos,
     // dai: gnosis,
@@ -66,17 +68,17 @@ export const LIFI_CHAIN_NAME_TO_VIEM_CHAIN = {
     // meg: megaeth,
     // mnt: mantle,
     // mod: mode,
-    // mon: monad,
+    mon: monad,
     // moo: moonbeam,
     // mop: morph,
-    // opt: optimism,
+    opt: optimism,
     // opst: optimismSepolia,
     // opb: opBNB,
-    // pol: polygon,
+    pol: polygon,
     // pla: plasma,
     // ron: ronin,
     // rsk: rootstock,
-    // scl: scroll,
+    scl: scroll,
     // sei: sei,
     // soe: soneium,
     // son: sonic,

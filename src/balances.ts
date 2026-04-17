@@ -9,7 +9,7 @@ import {
 import type { Address, Chain, PublicClient } from "viem";
 import { getSupportedChains, getSupportedTokens } from "./config.js";
 import type { AssetRef, BalancePosition, BalancesResult, SupportedToken } from "./types.js";
-import { LIFI_CHAIN_NAME_TO_VIEM_CHAIN, NATIVE_TOKEN_ADDRESS } from "./constants.js";
+import { COINS, LIFI_CHAIN_NAME_TO_VIEM_CHAIN, NATIVE_TOKEN_ADDRESS } from "./constants.js";
 
 function clientFor(chain: Chain, rpcUrl: string | undefined): PublicClient {
   const transportUrl = chain?.rpcUrls.default.http[0] ?? rpcUrl;
@@ -67,50 +67,79 @@ export async function getWalletBalances(
         return [nativePosition];
       }
 
-      const multicallAddress =
-      client.chain?.contracts?.multicall3?.address;
-      if (!multicallAddress) {
-        console.log(`Skipping multicall for chain ${chain.key} due to missing multicall address`);
-        return [nativePosition];
-      }
+      const matchedAssets = COINS.flatMap((coin) => {
+        const token = erc20Tokens.find(
+          (supportedToken) => supportedToken.symbol.toUpperCase() === coin.toUpperCase()
+        );
 
-      const contractResults = await client.multicall({
-        allowFailure: true,
-        contracts: erc20Tokens.map((token) => ({
-          abi: erc20Abi,
-          address: getAddress(token.address),
-          functionName: "balanceOf",
-          args: [ownerAddress]
-        }))
-      });
-
-      const tokenPositions = contractResults.flatMap((result, index) => {
-        if (result.status !== "success") {
+        if (!token) {
+          console.warn(`Stablecoin ${coin} not found for chain ${chain.key}`);
           return [];
         }
 
-        const token = erc20Tokens[index];
-        const normalizedAddress = getAddress(token.address);
-        const rawAmount = result.result as bigint;
-
-        return [
-          {
-            chainId: chain.id,
-            chainKey: chain.key,
-            token: {
-              symbol: token.symbol,
-              address: normalizedAddress,
-              decimals: token.decimals,
-              chainId: chain.id,
-              chainKey: chain.key
-            },
-            rawAmount,
-            formattedAmount: formatUnits(rawAmount, token.decimals)
-          } satisfies BalancePosition
-        ];
+        return [toAssetRef(token, chain.key)];
       });
 
-      return [nativePosition, ...tokenPositions];
+      const coinPositions = (
+        await Promise.all(
+          matchedAssets.map(async (asset) => {
+            const balance = await getAssetBalance(ownerAddress, asset);
+
+            return {
+              chainId: chain.id,
+              chainKey: chain.key,
+              token: asset,
+              rawAmount: balance,
+              formattedAmount: formatUnits(balance, asset.decimals)
+            } satisfies BalancePosition;
+          })
+        )
+      ).filter((position) => position.rawAmount > 0n);
+
+      // const multicallAddress =
+      // client.chain?.contracts?.multicall3?.address;
+      // if (!multicallAddress) {
+      //   console.log(`Skipping multicall for chain ${chain.key} due to missing multicall address`);
+      //   return [nativePosition];
+      // }
+
+      // const contractResults = await client.multicall({
+      //   allowFailure: true,
+      //   contracts: erc20Tokens.map((token) => ({
+      //     abi: erc20Abi,
+      //     address: getAddress(token.address),
+      //     functionName: "balanceOf",
+      //     args: [ownerAddress]
+      //   }))
+      // });
+
+      // const tokenPositions = contractResults.flatMap((result, index) => {
+      //   if (result.status !== "success") {
+      //     return [];
+      //   }
+
+      //   const token = erc20Tokens[index];
+      //   const normalizedAddress = getAddress(token.address);
+      //   const rawAmount = result.result as bigint;
+
+      //   return [
+      //     {
+      //       chainId: chain.id,
+      //       chainKey: chain.key,
+      //       token: {
+      //         symbol: token.symbol,
+      //         address: normalizedAddress,
+      //         decimals: token.decimals,
+      //         chainId: chain.id,
+      //         chainKey: chain.key
+      //       },
+      //       rawAmount,
+      //       formattedAmount: formatUnits(rawAmount, token.decimals)
+      //     } satisfies BalancePosition
+      //   ];
+      // });
+
+      return [nativePosition, ...coinPositions]; //[nativePosition, ...tokenPositions];
     })
   );
 
@@ -164,4 +193,14 @@ function dedupeTokens(tokens: SupportedToken[]): SupportedToken[] {
   }
 
   return deduped;
+}
+
+function toAssetRef(token: SupportedToken, chainKey: string): AssetRef {
+  return {
+    symbol: token.symbol,
+    address: getAddress(token.address),
+    decimals: token.decimals,
+    chainId: token.chainId,
+    chainKey
+  };
 }

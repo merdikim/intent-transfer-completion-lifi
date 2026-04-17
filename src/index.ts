@@ -22,12 +22,13 @@ export async function completeTransferIntent(
   }
 
   const balances = await getWalletBalances(ownerAddress);
+  console.log(balances.filtered)
   const plan = await planTransfer(resolvedIntent, ownerAddress, balances.filtered, assetBalance);
   return executeTransferPlan(plan, localWallet);
 }
 
 completeTransferIntent({
-  intent: "transfer 0.1 eth to merkim.eth on Base"
+  intent: "transfer 2 usdc to merkim.eth on optimism"
 }).then(result => console.log(result)).catch(err => console.error(err));
 
 export const plugin: OpenClawPlugin = {

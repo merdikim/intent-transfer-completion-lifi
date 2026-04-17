@@ -1,13 +1,16 @@
-import { createPublicClient, encodeFunctionData, erc20Abi, getAddress, http, maxUint256 } from "viem";
+import { createPublicClient, getAddress, http, } from "viem";
 import { getAssetBalance } from "./balances.js";
+import { loadConfig, getSupportedChains } from "./config.js";
 import { MissingSignerError, ExecutionError } from "./errors.js";
+import { LIFI_CHAIN_NAME_TO_VIEM_CHAIN } from "./constants.js";
+import { HttpLifiClient } from "./lifiClient.js";
+import { sendFinalTransfer } from "./finalTransfer.js";
 import { waitForBalanceIncrease } from "./statusTracker.js";
 export async function executeTransferPlan(plan, localWallet) {
     if (!localWallet) {
         throw new MissingSignerError();
     }
     const transactions = [];
-    console.log(plan);
     if (plan.route) {
         const preRouteTargetBalance = await getAssetBalance(plan.ownerAddress, plan.targetAsset);
         for (const step of plan.route.steps) {
@@ -20,13 +23,12 @@ export async function executeTransferPlan(plan, localWallet) {
             minimumBalance: preRouteTargetBalance + plan.shortfallRaw,
         });
     }
-    const finalTransferHash = '0xjvjek'; // Placeholder until sendFinalTransfer is implemented
-    // // await sendFinalTransfer(plan, localWallet);
-    // transactions.push({
-    //   chainId: plan.targetChain.id,
-    //   hash: finalTransferHash,
-    //   kind: "final-transfer"
-    // });
+    const finalTransferHash = await sendFinalTransfer(plan, localWallet);
+    transactions.push({
+        chainId: plan.targetChain.id,
+        hash: finalTransferHash,
+        kind: "final-transfer"
+    });
     return {
         executed: true,
         plan,
@@ -36,49 +38,62 @@ export async function executeTransferPlan(plan, localWallet) {
     };
 }
 async function executeRouteStep(step, ownerAddress, localWallet) {
-    const chain = Object.values(SUPPORTED_CHAINS).find((item) => item.id === step.action.fromChainId);
-    if (!chain) {
+    const config = loadConfig();
+    const lifiClient = new HttpLifiClient(config);
+    const supportedChains = await getSupportedChains();
+    const chain = supportedChains.find((item) => item.id === step.action.fromChainId);
+    const viemChain = chain ? LIFI_CHAIN_NAME_TO_VIEM_CHAIN[chain.key] : undefined;
+    if (!chain || !viemChain) {
         throw new ExecutionError(`Unsupported route step chain ${step.action.fromChainId}`);
     }
     const rpcUrl = config.rpcUrls[chain.key];
-    if (!rpcUrl) {
-        throw new ExecutionError(`Missing RPC URL for ${chain.key}`);
-    }
     const publicClient = createPublicClient({
-        chain: chain.chain,
-        transport: http(rpcUrl)
+        chain: viemChain,
+        transport: http(rpcUrl ?? viemChain.rpcUrls.default.http[0])
     });
+    const walletClient = localWallet.getWalletClient(viemChain, rpcUrl);
     const transactions = [];
-    const approvalAddress = step.estimate?.approvalAddress;
-    if (approvalAddress && step.action.fromToken.address !== getAddress("0x0000000000000000000000000000000000000000")) {
-        const allowance = (await publicClient.readContract({
-            abi: erc20Abi,
-            address: step.action.fromToken.address,
-            functionName: "allowance",
-            args: [ownerAddress, approvalAddress]
-        }));
-        if (allowance < BigInt(step.action.fromAmount)) {
-            const approvalHash = await localWallet.walletClient.sendTransaction({
-                account: localWallet.address,
-                chain: chain.chain,
-                to: step.action.fromToken.address,
-                data: encodeFunctionData({
-                    abi: erc20Abi,
-                    functionName: "approve",
-                    args: [approvalAddress, maxUint256]
-                })
-            });
-            await publicClient.waitForTransactionReceipt({ hash: approvalHash });
-            transactions.push({ chainId: chain.id, hash: approvalHash, kind: "approval" });
+    const populatedStep = await lifiClient.populateStepTransaction({
+        ...step,
+        action: {
+            ...step.action,
+            fromAddress: step.action.fromAddress ?? ownerAddress,
+            toAddress: step.action.toAddress ?? ownerAddress
         }
-    }
-    const transactionRequest = step.transactionRequest;
+    });
+    const approvalAddress = populatedStep.estimate?.approvalAddress;
+    const fromTokenAddress = getAddress(populatedStep.action.fromToken.address);
+    // if (approvalAddress && fromTokenAddress !== zeroAddress) {
+    //   const allowance = (await publicClient.readContract({
+    //     abi: erc20Abi,
+    //     address: fromTokenAddress,
+    //     functionName: "allowance",
+    //     args: [ownerAddress, approvalAddress]
+    //   })) as bigint;
+    //   console.log(allowance)
+    //   if (allowance < BigInt(populatedStep.action.fromAmount)) {
+    //     const approvalHash = await walletClient.sendTransaction({
+    //       account: localWallet.address,
+    //       chain: viemChain,
+    //       kzg: undefined,
+    //       to: fromTokenAddress,
+    //       data: encodeFunctionData({
+    //         abi: erc20Abi,
+    //         functionName: "approve",
+    //         args: [approvalAddress, maxUint256]
+    //       })
+    //     });
+    //     await publicClient.waitForTransactionReceipt({ hash: approvalHash });
+    //     transactions.push({ chainId: chain.id, hash: approvalHash, kind: "approval" });
+    //   }
+    // }
+    const transactionRequest = populatedStep.transactionRequest;
     if (!transactionRequest) {
-        throw new ExecutionError(`LI.FI route step for ${step.toolDetails?.name ?? step.tool ?? "unknown tool"} did not include a transaction request.`);
+        throw new ExecutionError(`LI.FI route step for ${populatedStep.toolDetails?.name ?? populatedStep.tool ?? "unknown tool"} did not include a transaction request after stepTransaction population.`);
     }
-    const txHash = await localWallet.walletClient.sendTransaction({
-        account: localWallet.address,
-        chain: chain.chain,
+    const txHash = await walletClient.sendTransaction({
+        chain: viemChain,
+        kzg: undefined,
         to: transactionRequest.to,
         data: transactionRequest.data,
         value: transactionRequest.value ? BigInt(transactionRequest.value) : undefined,

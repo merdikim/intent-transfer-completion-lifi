@@ -69,7 +69,6 @@ export async function resolveAsset(
     address: token.address,
     decimals: token.decimals,
     chainId: token.chainId,
-    chainKey: chainKey,
-    isNative: token.address === NATIVE_TOKEN_ADDRESS
+    chainKey: chainKey
   };
 }

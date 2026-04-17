@@ -41,11 +41,23 @@ export class HttpLifiClient {
                 // }
             }
         });
-        const route = response.routes?.[0];
-        if (!route) {
-            throw new LifiApiError("LI.FI did not return a route.");
+        if (!response.routes || response.routes.length === 0) {
+            throw new LifiApiError("LI.FI did not return any routes.");
         }
-        return route;
+        return response.routes;
+    }
+    async populateStepTransaction(step) {
+        return this.request("/advanced/stepTransaction", {
+            method: "POST",
+            body: {
+                ...step,
+                action: {
+                    ...step.action,
+                    fromAddress: step.action.fromAddress,
+                    toAddress: step.action.toAddress,
+                },
+            }
+        });
     }
     async getStatus(params) {
         return this.request("/status", { query: params });

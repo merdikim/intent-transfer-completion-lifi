@@ -15,6 +15,10 @@ export declare const pluginConfigSchema: {
             readonly type: "string";
             readonly default: "openclaw-intent-transfer";
         };
+        readonly routeFromAmountBufferBps: {
+            readonly type: "number";
+            readonly default: 500;
+        };
     };
 };
 export declare function loadConfig(config?: Partial<PluginConfig>): PluginConfig;

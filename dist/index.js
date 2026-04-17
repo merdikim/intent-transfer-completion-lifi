@@ -1,4 +1,4 @@
-import { getAssetBalance } from "./balances.js";
+import { getAssetBalance, getWalletBalances } from "./balances.js";
 import { executeTransferPlan } from "./executePlan.js";
 import { parseIntent } from "./parseIntent.js";
 import { resolveIntent } from "./resolveAssets.js";
@@ -8,19 +8,19 @@ import { pluginConfigSchema } from "./config.js";
 export async function completeTransferIntent(input) {
     const parsed = parseIntent(input.intent);
     const resolvedIntent = await resolveIntent(parsed);
-    const localWallet = await resolveLocalWallet(input.walletPath || "./wallet.json");
+    const localWallet = await resolveLocalWallet(input.walletPath || "./wallet.txt");
     const ownerAddress = localWallet.address;
     const assetBalance = await getAssetBalance(ownerAddress, resolvedIntent.asset);
     if (assetBalance > resolvedIntent.amountRaw) {
         console.log("just transfer");
         return true; // Placeholder until executeTransferPlan is implemented
     }
-    const balances = { raw: [] }; //await getWalletBalances(ownerAddress);
-    const plan = await planTransfer(resolvedIntent, ownerAddress, balances.raw, assetBalance);
+    const balances = await getWalletBalances(ownerAddress);
+    const plan = await planTransfer(resolvedIntent, ownerAddress, balances.filtered, assetBalance);
     return executeTransferPlan(plan, localWallet);
 }
 completeTransferIntent({
-    intent: "transfer 100 USDC to merkim.eth on Base"
+    intent: "transfer 0.1 usdc to merkim.eth on optimism"
 }).then(result => console.log(result)).catch(err => console.error(err));
 export const plugin = {
     id: "intent-transfer-completion-lifi",

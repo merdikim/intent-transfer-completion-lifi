@@ -78,7 +78,6 @@ export interface AssetRef {
     decimals: number;
     chainId: number;
     chainKey: string;
-    isNative: boolean;
 }
 export interface ResolvedIntent {
     parsed: ParsedIntent;
@@ -95,14 +94,14 @@ export interface BalancePosition {
     formattedAmount: string;
 }
 export interface BalancesResult {
-    raw: BalancePosition[];
-    formatted: BalancePosition[];
+    all: BalancePosition[];
+    filtered: BalancePosition[];
 }
 export interface GasPolicyResult {
     minimumReserveRaw: bigint;
     warnings: string[];
 }
-export interface Quote {
+export interface RouteQuote {
     tool?: string;
     toAmount: string;
     toAmountMin?: string;
@@ -115,16 +114,22 @@ export interface Quote {
     }>;
 }
 export interface RouteTransactionRequest {
+    from?: Address;
     to: Address;
+    chainId?: number;
     data?: Hex;
     value?: string;
     gasLimit?: string;
     gasPrice?: string;
 }
 export interface RouteStepEstimate {
+    fromAmount?: string;
     toAmount?: string;
     toAmountMin?: string;
     approvalAddress?: Address;
+    data?: {
+        estimatedGas?: number;
+    };
 }
 export interface RouteStepAction {
     fromChainId: number;
@@ -142,6 +147,7 @@ export interface RouteStepAction {
     fromAmount: string;
     toAddress?: Address;
     fromAddress?: Address;
+    slippage?: number;
 }
 export interface RouteStep {
     id?: string;
@@ -155,7 +161,7 @@ export interface RouteStep {
     estimate?: RouteStepEstimate;
     transactionRequest?: RouteTransactionRequest;
 }
-export interface QuotePlan {
+export interface RoutePlan {
     id?: string;
     fromChainId: number;
     toChainId: number;
@@ -165,10 +171,9 @@ export interface QuotePlan {
     toAmount: string;
     steps: RouteStep[];
 }
-export interface QuoteCandidate {
+export interface RouteCandidate {
     sourceBalance: BalancePosition;
-    quote: Quote;
-    route?: QuotePlan;
+    route?: RoutePlan;
 }
 export interface TransferPlan {
     ownerAddress: Address;
@@ -178,10 +183,8 @@ export interface TransferPlan {
     requestedAmountRaw: bigint;
     currentTargetBalanceRaw: bigint;
     shortfallRaw: bigint;
-    route?: QuotePlan;
+    route?: RoutePlan;
 }
-export type RouteQuote = Quote;
-export type RoutePlan = QuotePlan;
 export interface ExecutedTransaction {
     chainId: number;
     hash: Hex;
@@ -199,6 +202,7 @@ export interface PluginConfig {
     lifiApiKey?: string;
     integrator: string;
     defaultSlippageBps: number;
+    routeFromAmountBufferBps: number;
     rpcUrls: Partial<Record<string, string>>;
     minNativeReserve: Partial<Record<string, string>>;
     routeStatusPollIntervalMs: number;
@@ -206,7 +210,7 @@ export interface PluginConfig {
 }
 export interface LocalWalletBinding {
     address: Address;
-    walletClient: WalletClient;
+    getWalletClient: (chain: Chain, rpcUrl?: string) => WalletClient;
 }
 export interface ClientBundle {
     publicClient: PublicClient;
@@ -255,7 +259,7 @@ export interface LifiClient {
         fromAddress: Address;
         fromAmount: bigint;
         toAddress?: Address;
-    }): Promise<Quote>;
+    }): Promise<RouteQuote>;
     getRoutes(params: {
         fromChain: number;
         toChain: number;
@@ -264,7 +268,8 @@ export interface LifiClient {
         fromAddress: Address;
         fromAmount: bigint;
         toAddress?: Address;
-    }): Promise<QuotePlan>;
+    }): Promise<RoutePlan[]>;
+    populateStepTransaction(step: RouteStep): Promise<RouteStep>;
     getStatus(params: Record<string, string>): Promise<unknown>;
 }
 export interface SupportedToken {
