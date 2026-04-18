@@ -1,4 +1,5 @@
-import type { Address, Chain, Hex, PublicClient, WalletClient } from "viem";
+import type { Route as SdkRoute } from "@lifi/types";
+import type { Address, Chain, Hex, PublicClient, WalletClient, Account } from "viem";
 export interface OpenClawWalletProvider {
     walletClient?: WalletClient;
     getWalletClient?: () => Promise<WalletClient> | WalletClient;
@@ -170,6 +171,7 @@ export interface RoutePlan {
     fromAmount: string;
     toAmount: string;
     steps: RouteStep[];
+    sdkRoute: SdkRoute;
 }
 export interface RouteCandidate {
     sourceBalance: BalancePosition;
@@ -204,11 +206,11 @@ export interface PluginConfig {
     defaultSlippageBps: number;
     routeFromAmountBufferBps: number;
     rpcUrls: Partial<Record<string, string>>;
-    minNativeReserve: Partial<Record<string, string>>;
     routeStatusPollIntervalMs: number;
     routeStatusTimeoutMs: number;
 }
 export interface LocalWalletBinding {
+    account: Account;
     address: Address;
     getWalletClient: (chain: Chain, rpcUrl?: string) => WalletClient;
 }
@@ -278,8 +280,8 @@ export interface SupportedToken {
     symbol: string;
     name: string;
     decimals: number;
-    priceUSD: number;
-    logoURI: string;
-    verificationStatus: string;
-    verificationStatusBreakdown: [];
+    priceUSD?: number | string;
+    logoURI?: string;
+    verificationStatus?: string;
+    verificationStatusBreakdown?: string[];
 }

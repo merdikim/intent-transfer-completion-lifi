@@ -1,11 +1,20 @@
+import {
+  getQuote as getLifiQuote,
+  getRoutes as getLifiRoutes,
+  getStatus as getLifiStatus,
+  getStepTransaction,
+  getTokens as getLifiTokens
+} from "@lifi/sdk";
+import type { Route as SdkRoute } from "@lifi/types";
+import { getAddress } from "viem";
 import type { Address } from "viem";
 
+import { ensureLifiSdkConfigured } from "./config.js";
 import { LifiApiError } from "./errors.js";
 import type {
   LifiClient,
   LifiToken,
   PluginConfig,
-  RequestOptions,
   RoutePlan,
   RouteQuote,
   RouteStep,
@@ -13,15 +22,18 @@ import type {
 
 export type { LifiClient } from "./types.js";
 
-export class HttpLifiClient implements LifiClient {
-  constructor(private readonly config: PluginConfig) {}
+export class LifiSdkClient implements LifiClient {
+  constructor(private readonly config: PluginConfig) {
+    ensureLifiSdkConfigured(config);
+  }
 
   async getTokens(chainId: number): Promise<LifiToken[]> {
-    const response = await this.request<{ tokens?: Record<string, LifiToken> }>("/tokens", {
-      query: { chains: chainId }
-    });
-
-    return Object.values(response.tokens ?? {});
+    try {
+      const response = await getLifiTokens({ chains: [chainId] });
+      return (response.tokens[chainId] ?? []) as LifiToken[];
+    } catch (error) {
+      throw toLifiApiError(error);
+    }
   }
 
   async getQuote(params: {
@@ -33,17 +45,32 @@ export class HttpLifiClient implements LifiClient {
     fromAmount: bigint;
     toAddress?: Address;
   }): Promise<RouteQuote> {
-    return this.request<RouteQuote>("/quote", {
-      query: {
+    try {
+      const quote = await getLifiQuote({
         fromChain: params.fromChain,
         toChain: params.toChain,
         fromToken: params.fromToken,
         toToken: params.toToken,
         fromAddress: params.fromAddress,
         toAddress: params.toAddress,
-        fromAmount: params.fromAmount.toString()
-      }
-    });
+        fromAmount: params.fromAmount.toString(),
+      });
+
+      return {
+        tool: quote.tool,
+        toAmount: quote.estimate?.toAmount ?? quote.action.fromAmount,
+        toAmountMin: quote.estimate?.toAmountMin,
+        approvalAddress: quote.estimate?.approvalAddress
+          ? getAddress(quote.estimate.approvalAddress)
+          : undefined,
+        gasCosts: quote.estimate?.gasCosts?.map((cost) => ({
+          amount: cost.amount,
+          token: { symbol: cost.token.symbol },
+        })),
+      };
+    } catch (error) {
+      throw toLifiApiError(error);
+    }
   }
 
   async getRoutes(params: {
@@ -55,9 +82,8 @@ export class HttpLifiClient implements LifiClient {
     fromAmount: bigint;
     toAddress?: Address;
   }): Promise<RoutePlan[]> {
-    const response = await this.request<{ routes?: RoutePlan[] }>("/advanced/routes", {
-      method: "POST",
-      body: {
+    try {
+      const response = await getLifiRoutes({
         fromChainId: params.fromChain,
         toChainId: params.toChain,
         fromTokenAddress: params.fromToken,
@@ -65,74 +91,62 @@ export class HttpLifiClient implements LifiClient {
         fromAddress: params.fromAddress,
         toAddress: params.toAddress,
         fromAmount: params.fromAmount.toString(),
-        // options: {
-        //   integrator: this.config.integrator,
-        //   allowSwitchChain: true,
-        //   maxPriceImpact: 0.2
-        // }
+        options: {
+          integrator: this.config.integrator,
+          allowSwitchChain: true,
+          slippage: this.config.defaultSlippageBps / 10_000,
+        },
+      });
+
+      if (!response.routes?.length) {
+        throw new LifiApiError("LI.FI did not return any routes.");
       }
-    });
 
-    if (!response.routes || response.routes.length === 0) {
-      throw new LifiApiError("LI.FI did not return any routes.");
+      return response.routes.map(toRoutePlan);
+    } catch (error) {
+      throw toLifiApiError(error);
     }
-
-    return response.routes
   }
 
   async populateStepTransaction(step: RouteStep): Promise<RouteStep> {
-    return this.request<RouteStep>("/advanced/stepTransaction", {
-      method: "POST",
-      body: {
-        ...step,
-        action: {
-          ...step.action,
-          fromAddress: step.action.fromAddress,
-          toAddress: step.action.toAddress,
-        },
-      }
-    });
+    try {
+      return (await getStepTransaction(step as never)) as RouteStep;
+    } catch (error) {
+      throw toLifiApiError(error);
+    }
   }
 
   async getStatus(params: Record<string, string>): Promise<unknown> {
-    return this.request("/status", { query: params });
+    try {
+      return await getLifiStatus(params as never);
+    } catch (error) {
+      throw toLifiApiError(error);
+    }
+  }
+}
+
+function toLifiApiError(error: unknown): LifiApiError {
+  if (error instanceof LifiApiError) {
+    return error;
   }
 
-  private async request<T>(path: string, options: RequestOptions): Promise<T> {
-    const normalizedBase = this.config.lifiBaseUrl.endsWith("/")
-      ? this.config.lifiBaseUrl
-      : `${this.config.lifiBaseUrl}/`;
-    const normalizedPath = path.startsWith("/") ? path.slice(1) : path;
-    const url = new URL(normalizedPath, normalizedBase);
-    if (options.query) {
-      for (const [key, value] of Object.entries(options.query)) {
-        if (value !== undefined) {
-          url.searchParams.set(key, String(value));
-        }
-      }
-    }
-
-    const headers: Record<string, string> = {};
-    if (options.body) {
-      headers["content-type"] = "application/json";
-    }
-    if (this.config.lifiApiKey) {
-      headers["x-lifi-api-key"] = this.config.lifiApiKey;
-    }
-
-    const response = await fetch(url, {
-      method: options.method ?? "GET",
-      headers,
-      body: options.body ? JSON.stringify(options.body) : undefined
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => "");
-      throw new LifiApiError(
-        `LI.FI request failed with status ${response.status}${errorText ? `: ${errorText}` : ""}`
-      );
-    }
-
-    return (await response.json()) as T;
+  if (error instanceof Error) {
+    return new LifiApiError(error.message);
   }
+
+  return new LifiApiError("Unknown LI.FI SDK error");
+}
+
+function toRoutePlan(route: SdkRoute): RoutePlan {
+  return {
+    id: route.id,
+    fromChainId: route.fromChainId,
+    toChainId: route.toChainId,
+    fromTokenAddress: getAddress(route.fromToken.address),
+    toTokenAddress: getAddress(route.toToken.address),
+    fromAmount: route.fromAmount,
+    toAmount: route.toAmount,
+    steps: route.steps as unknown as RouteStep[],
+    sdkRoute: route,
+  };
 }

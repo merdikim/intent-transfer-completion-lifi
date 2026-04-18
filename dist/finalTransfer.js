@@ -13,6 +13,7 @@ export async function sendFinalTransfer(plan, localWallet) {
     const isNativeAsset = getAddress(plan.targetAsset.address) === NATIVE_TOKEN_ADDRESS;
     if (isNativeAsset) {
         return walletClient.sendTransaction({
+            account: localWallet.account,
             chain: targetChain,
             kzg: undefined,
             to: plan.recipient.resolvedAddress,
@@ -20,6 +21,7 @@ export async function sendFinalTransfer(plan, localWallet) {
         });
     }
     return walletClient.sendTransaction({
+        account: localWallet.account,
         chain: targetChain,
         kzg: undefined,
         to: plan.targetAsset.address,

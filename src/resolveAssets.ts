@@ -1,5 +1,4 @@
 import {
-  Address,
   createPublicClient,
   getAddress,
   http,
@@ -12,7 +11,6 @@ import { RecipientResolutionError, UnsupportedChainError, UnsupportedTokenError 
 import type { AssetRef, ParsedIntent, ResolvedIntent, ResolvedRecipient, SupportedToken } from "./types.js";
 import { mainnet } from "viem/chains";
 import { normalize } from "viem/ens";
-import { NATIVE_TOKEN_ADDRESS } from "./constants.js";
 
 export async function resolveIntent(
   parsed: ParsedIntent

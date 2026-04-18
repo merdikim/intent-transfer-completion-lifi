@@ -1,25 +1,18 @@
-import {
-  createPublicClient,
-  encodeFunctionData,
-  erc20Abi,
-  getAddress,
-  http,
-  maxUint256,
-  zeroAddress,
-} from "viem";
+import { EVM, config as lifiSdkConfig, executeRoute } from "@lifi/sdk";
+import type { Process, RouteExtended } from "@lifi/sdk";
+import type { ChainId } from "@lifi/types";
+
 import { getAssetBalance } from "./balances.js";
-import { loadConfig, getSupportedChains } from "./config.js";
-import { MissingSignerError, ExecutionError } from "./errors.js";
+import { ensureLifiSdkConfigured, getSupportedChains, loadConfig } from "./config.js";
+import { ExecutionError, MissingSignerError } from "./errors.js";
 import { LIFI_CHAIN_NAME_TO_VIEM_CHAIN } from "./constants.js";
-import { HttpLifiClient } from "./lifiClient.js";
 import { sendFinalTransfer } from "./finalTransfer.js";
 import { waitForBalanceIncrease } from "./statusTracker.js";
-import type { Address, Hex } from "viem";
+import type { Hex } from "viem";
 import type {
   ExecutedTransaction,
   ExecutionResult,
   LocalWalletBinding,
-  RouteStep,
   TransferPlan
 } from "./types.js";
 
@@ -35,11 +28,8 @@ export async function executeTransferPlan(
 
   if (plan.route) {
     const preRouteTargetBalance = await getAssetBalance(plan.ownerAddress, plan.targetAsset);
-
-    for (const step of plan.route.steps) {
-      const stepTransactions = await executeRouteStep(step, localWallet.address, localWallet);
-      transactions.push(...stepTransactions);
-    }
+    const executedRoute = await executePlannedRoute(plan, localWallet);
+    transactions.push(...extractExecutedTransactions(executedRoute));
 
     await waitForBalanceIncrease({
       ownerAddress: plan.ownerAddress,
@@ -64,84 +54,85 @@ export async function executeTransferPlan(
   };
 }
 
-async function executeRouteStep(
-  step: RouteStep,
-  ownerAddress: Address,
+async function executePlannedRoute(
+  plan: TransferPlan,
   localWallet: LocalWalletBinding
-): Promise<ExecutedTransaction[]> {
+): Promise<RouteExtended> {
   const config = loadConfig();
-  const lifiClient = new HttpLifiClient(config);
+  ensureLifiSdkConfigured(config);
+
+  lifiSdkConfig.setProviders([
+    EVM({
+      getWalletClient: async () => getWalletClientForChain(plan.route!.fromChainId, localWallet),
+      switchChain: async (chainId) => getWalletClientForChain(chainId, localWallet),
+    }),
+  ]);
+
+  try {
+    return await executeRoute(plan.route!.sdkRoute, {
+      switchChainHook: async (chainId) => getWalletClientForChain(chainId, localWallet),
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown LI.FI SDK execution error";
+    throw new ExecutionError(`LI.FI route execution failed: ${message}`);
+  }
+}
+
+async function getWalletClientForChain(chainId: ChainId, localWallet: LocalWalletBinding) {
+  const config = loadConfig();
   const supportedChains = await getSupportedChains();
-  const chain = supportedChains.find((item) => item.id === step.action.fromChainId);
+  const chain = supportedChains.find((item) => item.id === chainId);
   const viemChain = chain ? LIFI_CHAIN_NAME_TO_VIEM_CHAIN[chain.key] : undefined;
+
   if (!chain || !viemChain) {
-    throw new ExecutionError(`Unsupported route step chain ${step.action.fromChainId}`);
+    throw new ExecutionError(`Unsupported route execution chain ${chainId}`);
   }
 
-  const rpcUrl = config.rpcUrls[chain.key];
-  const publicClient = createPublicClient({
-    chain: viemChain,
-    transport: http(rpcUrl ?? viemChain.rpcUrls.default.http[0])
-  });
-  const walletClient = localWallet.getWalletClient(viemChain, rpcUrl);
+  return localWallet.getWalletClient(viemChain, config.rpcUrls[chain.key]);
+}
+
+function extractExecutedTransactions(route: RouteExtended): ExecutedTransaction[] {
   const transactions: ExecutedTransaction[] = [];
-  const populatedStep = await lifiClient.populateStepTransaction({
-    ...step,
-    action: {
-      ...step.action,
-      fromAddress: step.action.fromAddress ?? ownerAddress,
-      toAddress: step.action.toAddress ?? ownerAddress
-    }
-  });
+  const seen = new Set<string>();
 
-  const approvalAddress = populatedStep.estimate?.approvalAddress;
-  const fromTokenAddress = getAddress(populatedStep.action.fromToken.address);
-  if (approvalAddress && fromTokenAddress !== zeroAddress) {
-    const allowance = (await publicClient.readContract({
-      abi: erc20Abi,
-      address: fromTokenAddress,
-      functionName: "allowance",
-      args: [ownerAddress, approvalAddress]
-    })) as bigint;
+  for (const step of route.steps) {
+    for (const process of step.execution?.process ?? []) {
+      const transaction = toExecutedTransaction(process);
+      if (!transaction) {
+        continue;
+      }
 
-    if (allowance < BigInt(populatedStep.action.fromAmount)) {
-      const approvalHash = await walletClient.sendTransaction({
-        account: localWallet.account,
-        chain: viemChain,
-        kzg: undefined,
-        to: fromTokenAddress,
-        data: encodeFunctionData({
-          abi: erc20Abi,
-          functionName: "approve",
-          args: [approvalAddress, maxUint256]
-        })
-      });
-      await publicClient.waitForTransactionReceipt({ hash: approvalHash });
-      transactions.push({ chainId: chain.id, hash: approvalHash, kind: "approval" });
+      const key = `${transaction.kind}:${transaction.chainId}:${transaction.hash}`;
+      if (seen.has(key)) {
+        continue;
+      }
+
+      seen.add(key);
+      transactions.push(transaction);
     }
   }
 
-  const transactionRequest = populatedStep.transactionRequest;
-  if (!transactionRequest) {
-    throw new ExecutionError(
-      `LI.FI route step for ${populatedStep.toolDetails?.name ?? populatedStep.tool ?? "unknown tool"} did not include a transaction request after stepTransaction population.`
-    );
-  }
-
-  const txHash = await walletClient.sendTransaction({
-    account: localWallet.account,
-    chain: viemChain,
-    kzg: undefined,
-    to: transactionRequest.to,
-    data: transactionRequest.data,
-    value: transactionRequest.value ? BigInt(transactionRequest.value) : undefined,
-    gas: transactionRequest.gasLimit ? BigInt(transactionRequest.gasLimit) : undefined,
-    gasPrice: transactionRequest.gasPrice ? BigInt(transactionRequest.gasPrice) : undefined
-  });
-
-  await publicClient.waitForTransactionReceipt({ hash: txHash });
-  transactions.push({ chainId: chain.id, hash: txHash as Hex, kind: "route-step" });
   return transactions;
+}
+
+function toExecutedTransaction(process: Process): ExecutedTransaction | undefined {
+  if (!process.txHash || !process.chainId) {
+    return undefined;
+  }
+
+  if (process.type === "TOKEN_ALLOWANCE") {
+    return {
+      chainId: process.chainId,
+      hash: process.txHash as Hex,
+      kind: "approval"
+    };
+  }
+
+  return {
+    chainId: process.chainId,
+    hash: process.txHash as Hex,
+    kind: "route-step"
+  };
 }
 
 function buildSummary(plan: TransferPlan): string {

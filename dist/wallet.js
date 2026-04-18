@@ -6,6 +6,7 @@ export async function resolveLocalWallet(walletPath) {
         const privateKey = readFileSync(walletPath, "utf-8");
         const account = privateKeyToAccount(`0x${privateKey.trim()}`);
         return {
+            account,
             address: account.address,
             getWalletClient: (chain, rpcUrl) => createWalletClient({
                 account,

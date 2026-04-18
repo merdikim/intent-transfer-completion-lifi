@@ -1,28 +1,14 @@
-import { arbitrum, base, bsc, celo, monad, optimism, polygon, scroll, } from "viem/chains";
+import { arbitrum, avalanche, base, berachain, bsc, celo, gnosis, katana, mainnet, megaeth, monad, optimism, polygon, scroll, } from "viem/chains";
 import { zeroAddress } from "viem";
 export const NATIVE_TOKEN_ADDRESS = zeroAddress;
 export const COINS = ["USDC", "USDT", "DAI"];
 export const DEFAULT_CONFIG = {
     lifiBaseUrl: "https://li.quest/v1",
     lifiApiKey: undefined,
-    integrator: "openclaw-intent-transfer",
+    integrator: "intent-completion",
     defaultSlippageBps: 100,
     routeFromAmountBufferBps: 500,
-    // Public RPC defaults are convenient for development but are typically rate-limited.
-    rpcUrls: {
-        ethereum: "https://cloudflare-eth.com/v1/mainnet",
-        base: "https://mainnet.base.org",
-        arbitrum: "https://arb1.arbitrum.io/rpc",
-        optimism: "https://mainnet.optimism.io",
-        polygon: "https://polygon.drpc.org"
-    },
-    minNativeReserve: {
-        ethereum: "0.003",
-        base: "0.002",
-        arbitrum: "0.002",
-        optimism: "0.002",
-        polygon: "1"
-    },
+    rpcUrls: {},
     routeStatusPollIntervalMs: 10_000,
     routeStatusTimeoutMs: 20 * 60 * 1000
 };
@@ -30,13 +16,13 @@ export const LIFI_CHAIN_NAME_TO_VIEM_CHAIN = {
     // abs: abstract,
     // ape: apeChain,
     // arct: arcTestnet,
-    // eth: mainnet,
+    eth: mainnet,
     arb: arbitrum,
     // arbs: arbitrumSepolia,
-    // ava: avalanche,
+    ava: avalanche,
     bas: base,
     // bast: baseSepolia,
-    // ber: berachain,
+    ber: berachain,
     // bls: blast,
     // bob: boba,
     // boc: bob,
@@ -44,7 +30,7 @@ export const LIFI_CHAIN_NAME_TO_VIEM_CHAIN = {
     cel: celo,
     // crn: corn,
     // cro: cronos,
-    // dai: gnosis,
+    dai: gnosis,
     // etl: etherlink,
     // flr: flare,
     // flw: flowMainnet,
@@ -54,7 +40,7 @@ export const LIFI_CHAIN_NAME_TO_VIEM_CHAIN = {
     // imx: immutableZkEvm,
     // ink: ink,
     // kai: kaia,
-    // kat: katana,
+    kat: katana,
     // lna: linea,
     //lns: lens,
     //lsk: lisk,
@@ -65,7 +51,7 @@ export const LIFI_CHAIN_NAME_TO_VIEM_CHAIN = {
     //hpl: hyperliquid,
     //plu: plume,
     //vic: viction,
-    // meg: megaeth,
+    meg: megaeth,
     // mnt: mantle,
     // mod: mode,
     mon: monad,

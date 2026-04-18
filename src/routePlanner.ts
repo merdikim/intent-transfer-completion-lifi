@@ -8,9 +8,8 @@ import type {
   RouteCandidate
 } from "./types.js";
 import { loadConfig } from "./config.js";
-import { HttpLifiClient } from "./lifiClient.js";
-
-const BPS_DENOMINATOR = 10_000n;
+import { LifiSdkClient } from "./lifiClient.js";
+import { BPS_DENOMINATOR } from "./constants.js";
 
 export async function planTransfer(
   intent: ResolvedIntent,
@@ -18,19 +17,7 @@ export async function planTransfer(
   balances: BalancePosition[],
   assetBalance: bigint
 ): Promise<TransferPlan> {
-  const shortfallRaw = intent.amountRaw - assetBalance //intent.amountRaw > assetBalance ? intent.amountRaw - assetBalance : 0n;
-
-  // if (shortfallRaw === 0n) {
-  //   return {
-  //     ownerAddress,
-  //     recipient: intent.recipient,
-  //     targetChain: intent.chain,
-  //     targetAsset: intent.asset,
-  //     requestedAmountRaw: intent.amountRaw,
-  //     currentTargetBalanceRaw: assetBalance,
-  //     shortfallRaw
-  //   };
-  // }
+  const shortfallRaw = intent.amountRaw - assetBalance
 
   const candidate = await selectBestRouteCandidate(intent, ownerAddress, balances, shortfallRaw);
   return {
@@ -51,20 +38,34 @@ async function selectBestRouteCandidate(
   balances: BalancePosition[],
   shortfallRaw: bigint
 ): Promise<RouteCandidate> {
+
+  // Filter out balances that are already in the target asset, since those won't be used for routing
+  const nonTargetBalances = balances.filter(
+    (balance) =>
+      balance.token.chainId !== intent.asset.chainId ||
+      balance.token.address.toLowerCase() !== intent.asset.address.toLowerCase()
+  );
+
   const config = loadConfig();
-  const lifiClient = new HttpLifiClient(config);
+  const lifiClient = new LifiSdkClient(config);
 
   if (balances.length === 0) {
     throw new InsufficientFundsError("No spendable balances were found across configured chains.");
+  }
+
+  if (nonTargetBalances.length === 0) {
+    throw new InsufficientFundsError(
+      `Not enough funds available. Only ${intent.asset.symbol} was found, but the available balance does not cover the requested amount.`
+    );
   }
 
   let bestCandidate: RouteCandidate | undefined;
   let bestAmount = 0n;
 
   //slight buffer to increase chances of route `toAmount` meeting or exceeding `shortfallRaw` after accounting for potential slippage and fees, without being so large as to cause excessive unnecessary transfers
-  const bufferedShortfallRaw = applyBufferBps(shortfallRaw, BigInt(config.routeFromAmountBufferBps));
+  const bufferedShortfallRaw = applyBufferBps(shortfallRaw);  
 
-  for (const balance of balances) {
+  for (const balance of nonTargetBalances) {
     const fromAmount = balance.rawAmount > bufferedShortfallRaw ? bufferedShortfallRaw : balance.rawAmount;
     const routes = await lifiClient.getRoutes({
       fromChain: balance.chainId,
@@ -103,7 +104,8 @@ async function selectBestRouteCandidate(
   );
 }
 
-function applyBufferBps(amount: bigint, bufferBps: bigint): bigint {
+function applyBufferBps(amount: bigint): bigint {
+  const bufferBps = BigInt(100); // Default to 1% buffer
   if (amount <= 0n || bufferBps <= 0n) {
     return amount;
   }

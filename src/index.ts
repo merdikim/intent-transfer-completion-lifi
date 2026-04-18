@@ -13,22 +13,34 @@ export async function completeTransferIntent(
   const parsed = parseIntent(input.intent);
   const resolvedIntent = await resolveIntent(parsed);
   const localWallet = await resolveLocalWallet(input.walletPath || "./wallet.txt");
-  const ownerAddress = localWallet.address
+  const ownerAddress = localWallet.address;
+  console.log(ownerAddress)
 
-  const assetBalance = await getAssetBalance(ownerAddress, resolvedIntent.asset)
+  const assetBalance = await getAssetBalance(ownerAddress, resolvedIntent.asset);
   if (assetBalance > resolvedIntent.amountRaw) {
-    console.log("just transfer")
-    return true as unknown as ExecutionResult; // Placeholder until executeTransferPlan is implemented
+    const plan: TransferPlan = {
+      ownerAddress,
+      recipient: resolvedIntent.recipient,
+      targetChain: resolvedIntent.chain,
+      targetAsset: resolvedIntent.asset,
+      requestedAmountRaw: resolvedIntent.amountRaw,
+      currentTargetBalanceRaw: assetBalance,
+      shortfallRaw: 0n
+    };
+
+    return executeTransferPlan(plan, localWallet);
   }
 
   const balances = await getWalletBalances(ownerAddress);
   console.log(balances.filtered)
   const plan = await planTransfer(resolvedIntent, ownerAddress, balances.filtered, assetBalance);
-  return executeTransferPlan(plan, localWallet);
+  console.log(plan)
+  return null as unknown as ExecutionResult;
+  //return executeTransferPlan(plan, localWallet);
 }
 
 completeTransferIntent({
-  intent: "transfer 2 usdc to merkim.eth on optimism"
+  intent: "transfer 0.2 usdc to test.merkim.eth on ethereum"
 }).then(result => console.log(result)).catch(err => console.error(err));
 
 export const plugin: OpenClawPlugin = {

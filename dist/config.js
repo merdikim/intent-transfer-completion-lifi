@@ -1,9 +1,39 @@
+import { ChainType, config as lifiSdkConfig, createConfig, getChains, getTokens } from "@lifi/sdk";
 import { DEFAULT_CONFIG } from "./constants.js";
+let sdkInitialized = false;
+// function buildSdkRpcUrls(config: PluginConfig): Partial<Record<number, string[]>> {
+//   const chainIdToRpcUrls: Partial<Record<number, string[]>> = {};
+//   for (const [chainKey, rpcUrl] of Object.entries(config.rpcUrls)) {
+//     if (!rpcUrl) {
+//       continue;
+//     }
+//     const matchingChain = DEFAULT_CHAIN_KEY_TO_ID[chainKey];
+//     if (matchingChain) {
+//       chainIdToRpcUrls[matchingChain] = [rpcUrl];
+//     }
+//   }
+//   return chainIdToRpcUrls;
+// }
+export function ensureLifiSdkConfigured(config) {
+    const resolvedConfig = loadConfig(config);
+    const sdkConfig = {
+        apiKey: resolvedConfig.lifiApiKey,
+        apiUrl: resolvedConfig.lifiBaseUrl,
+        integrator: resolvedConfig.integrator,
+        //rpcUrls: buildSdkRpcUrls(resolvedConfig),
+    };
+    if (!sdkInitialized) {
+        createConfig(sdkConfig);
+        sdkInitialized = true;
+        return;
+    }
+    lifiSdkConfig.set(sdkConfig);
+}
 export const getSupportedChains = async () => {
     try {
-        const { chains } = await fetch(`${DEFAULT_CONFIG.lifiBaseUrl}/chains`).then((res) => res.json());
-        const evmChains = chains.filter((chain) => chain.chainType === "EVM");
-        return evmChains;
+        ensureLifiSdkConfigured();
+        const chains = (await getChains({ chainTypes: [ChainType.EVM] }));
+        return chains;
     }
     catch (error) {
         console.error("Error fetching supported chains:", error);
@@ -12,7 +42,8 @@ export const getSupportedChains = async () => {
 };
 export const getSupportedTokens = async (chain) => {
     try {
-        const { tokens } = await fetch(`${DEFAULT_CONFIG.lifiBaseUrl}/tokens`).then((res) => res.json());
+        ensureLifiSdkConfigured();
+        const { tokens } = await getTokens({ chains: [chain] });
         return (tokens[chain] ?? []);
     }
     catch (error) {
@@ -22,27 +53,26 @@ export const getSupportedTokens = async (chain) => {
 };
 export const pluginConfigSchema = {
     type: "object",
-    properties: {
-        lifiApiKey: { type: "string" },
-        lifiBaseUrl: { type: "string", default: "https://li.quest/v1" },
-        integrator: { type: "string", default: "openclaw-intent-transfer" },
-        routeFromAmountBufferBps: { type: "number", default: 500 },
-    }
+    properties: {}
 };
 export function loadConfig(config) {
     return {
         ...DEFAULT_CONFIG,
         ...config,
-        rpcUrls: {
-            ...DEFAULT_CONFIG.rpcUrls,
-            ...config?.rpcUrls
-        },
-        minNativeReserve: {
-            ...DEFAULT_CONFIG.minNativeReserve,
-            ...config?.minNativeReserve
-        }
+        // rpcUrls: {
+        //   ...DEFAULT_CONFIG.rpcUrls,
+        //   ...config?.rpcUrls
+        // },
     };
 }
+const DEFAULT_CHAIN_KEY_TO_ID = {
+    ethereum: 1,
+    optimism: 10,
+    bsc: 56,
+    polygon: 137,
+    arbitrum: 42161,
+    base: 8453,
+};
 export async function getChainByAlias(input) {
     const normalized = input.trim().toLowerCase();
     const chains = await getSupportedChains();

@@ -1,11 +1,10 @@
 import {
   encodeFunctionData,
   erc20Abi,
-  getAddress,
+  zeroAddress,
 } from "viem";
 
-import { LIFI_CHAIN_NAME_TO_VIEM_CHAIN, NATIVE_TOKEN_ADDRESS } from "./constants.js";
-import { loadConfig } from "./config.js";
+import { LIFI_CHAIN_NAME_TO_VIEM_CHAIN } from "./constants.js";
 import { ExecutionError, MissingSignerError } from "./errors.js";
 import type { Chain, Hex } from "viem";
 import type { LocalWalletBinding, TransferPlan } from "./types.js";
@@ -19,12 +18,9 @@ export async function sendFinalTransfer(
   }
 
   const targetChain = resolveTargetChain(plan);
-  const config = loadConfig();
-  const rpcUrl = config.rpcUrls[plan.targetChain.key];
-  const walletClient = localWallet.getWalletClient(targetChain, rpcUrl);
-  const isNativeAsset = getAddress(plan.targetAsset.address) === NATIVE_TOKEN_ADDRESS;
+  const walletClient = localWallet.getWalletClient(targetChain);
 
-  if (isNativeAsset) {
+  if (plan.targetAsset.address === zeroAddress) {
     return walletClient.sendTransaction({
       account: localWallet.account,
       chain: targetChain,
