@@ -88,7 +88,7 @@ async function getWalletClientForChain(chainId: ChainId, localWallet: LocalWalle
     throw new ExecutionError(`Unsupported route execution chain ${chainId}`);
   }
 
-  return localWallet.getWalletClient(viemChain, config.rpcUrls[chain.key]);
+  return localWallet.getWalletClient(viemChain);
 }
 
 function extractExecutedTransactions(route: RouteExtended): ExecutedTransaction[] {
