@@ -57,8 +57,7 @@ export class LifiSdkClient {
                 fromAmount: params.fromAmount.toString(),
                 options: {
                     integrator: this.config.integrator,
-                    allowSwitchChain: true,
-                    slippage: this.config.defaultSlippageBps / 10_000,
+                    allowSwitchChain: true
                 },
             });
             if (!response.routes?.length) {
