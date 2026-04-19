@@ -1,6 +1,6 @@
 import { createPublicClient, erc20Abi, formatUnits, getAddress, http, zeroAddress } from "viem";
-import { getSupportedChains, getSupportedTokens, loadConfig } from "./config.js";
-import { COINS, LIFI_CHAIN_NAME_TO_VIEM_CHAIN, NATIVE_TOKEN_ADDRESS } from "./constants.js";
+import { getSupportedChains, getSupportedTokens } from "./config.js";
+import { COINS, LIFI_CHAIN_NAME_TO_VIEM_CHAIN } from "./constants.js";
 function clientFor(chain, rpcUrl) {
     const transportUrl = rpcUrl ?? chain.rpcUrls.default.http[0];
     return createPublicClient({
@@ -22,27 +22,10 @@ export async function getWalletBalances(ownerAddress) {
             //console.log(`Skipping unsupported chain: ${chain.key}`);
             return [];
         }
-        const config = loadConfig();
-        const rpcUrl = resolveRpcUrl(chain, viemChain /*, config.rpcUrls[chain.key]*/);
         const tokens = await getSupportedTokens(chain.id);
-        const client = clientFor(viemChain, rpcUrl);
-        const nativeAmount = await client.getBalance({ address: ownerAddress });
-        const nativePosition = {
-            chainId: chain.id,
-            chainKey: chain.key,
-            token: {
-                symbol: chain.nativeToken.symbol,
-                address: NATIVE_TOKEN_ADDRESS,
-                decimals: chain.nativeToken.decimals,
-                chainId: chain.id,
-                chainKey: chain.key
-            },
-            rawAmount: nativeAmount,
-            formattedAmount: formatUnits(nativeAmount, chain.nativeToken.decimals)
-        };
-        const erc20Tokens = dedupeTokens(tokens.filter((token) => token.address !== NATIVE_TOKEN_ADDRESS));
+        const erc20Tokens = dedupeTokens(tokens.filter((token) => token.address !== zeroAddress));
         if (erc20Tokens.length === 0) {
-            return [nativePosition];
+            return []; //[nativePosition];
         }
         const matchedAssets = COINS.flatMap((coin) => {
             const token = erc20Tokens.find((supportedToken) => supportedToken.symbol.toUpperCase() === coin.toUpperCase());
@@ -62,45 +45,7 @@ export async function getWalletBalances(ownerAddress) {
                 formattedAmount: formatUnits(balance, asset.decimals)
             };
         }))).filter((position) => position.rawAmount > 0n);
-        // const multicallAddress =
-        // client.chain?.contracts?.multicall3?.address;
-        // if (!multicallAddress) {
-        //   console.log(`Skipping multicall for chain ${chain.key} due to missing multicall address`);
-        //   return [nativePosition];
-        // }
-        // const contractResults = await client.multicall({
-        //   allowFailure: true,
-        //   contracts: erc20Tokens.map((token) => ({
-        //     abi: erc20Abi,
-        //     address: getAddress(token.address),
-        //     functionName: "balanceOf",
-        //     args: [ownerAddress]
-        //   }))
-        // });
-        // const tokenPositions = contractResults.flatMap((result, index) => {
-        //   if (result.status !== "success") {
-        //     return [];
-        //   }
-        //   const token = erc20Tokens[index];
-        //   const normalizedAddress = getAddress(token.address);
-        //   const rawAmount = result.result as bigint;
-        //   return [
-        //     {
-        //       chainId: chain.id,
-        //       chainKey: chain.key,
-        //       token: {
-        //         symbol: token.symbol,
-        //         address: normalizedAddress,
-        //         decimals: token.decimals,
-        //         chainId: chain.id,
-        //         chainKey: chain.key
-        //       },
-        //       rawAmount,
-        //       formattedAmount: formatUnits(rawAmount, token.decimals)
-        //     } satisfies BalancePosition
-        //   ];
-        // });
-        return [nativePosition, ...coinPositions]; //[nativePosition, ...tokenPositions];
+        return coinPositions; //[nativePosition, ...coinPositions]; //[nativePosition, ...tokenPositions];
     }));
     const balances = chainBalances.flatMap((result, index) => {
         if (result.status === "fulfilled")
@@ -109,20 +54,16 @@ export async function getWalletBalances(ownerAddress) {
         console.error(`Chain failed: ${chain?.key}`, result.reason);
         return [];
     });
-    return {
-        all: balances,
-        filtered: balances.filter((balance) => Number(balance.formattedAmount) > 0)
-    };
+    return balances;
 }
 export async function getAssetBalance(ownerAddress, asset) {
-    const config = loadConfig();
     const supportedChains = await getSupportedChains();
     const lifiChain = supportedChains.find((chain) => chain.key === asset.chainKey || chain.id === asset.chainId);
     const viemChain = LIFI_CHAIN_NAME_TO_VIEM_CHAIN[asset.chainKey];
     if (!viemChain) {
         throw new Error(`Unsupported chain key: ${asset.chainKey}`);
     }
-    const client = clientFor(viemChain, resolveRpcUrl(lifiChain, viemChain /*, config.rpcUrls[asset.chainKey]*/));
+    const client = clientFor(viemChain, resolveRpcUrl(lifiChain, viemChain));
     if (asset.address === zeroAddress) {
         return client.getBalance({ address: ownerAddress });
     }
@@ -155,9 +96,8 @@ function toAssetRef(token, chainKey) {
         chainKey
     };
 }
-function resolveRpcUrl(lifiChain, viemChain, configuredRpcUrl) {
-    return (configuredRpcUrl ??
-        lifiChain?.metamask?.rpcUrls?.[0] ??
+function resolveRpcUrl(lifiChain, viemChain) {
+    return (lifiChain?.metamask?.rpcUrls?.[0] ??
         viemChain.rpcUrls.default.http[0]);
 }
 //# sourceMappingURL=balances.js.map

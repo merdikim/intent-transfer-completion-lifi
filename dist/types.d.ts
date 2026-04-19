@@ -94,10 +94,6 @@ export interface BalancePosition {
     rawAmount: bigint;
     formattedAmount: string;
 }
-export interface BalancesResult {
-    all: BalancePosition[];
-    filtered: BalancePosition[];
-}
 export interface GasPolicyResult {
     minimumReserveRaw: bigint;
     warnings: string[];
@@ -201,13 +197,7 @@ export interface ExecutionResult {
 }
 export interface PluginConfig {
     lifiBaseUrl: string;
-    lifiApiKey?: string;
     integrator: string;
-    defaultSlippageBps: number;
-    routeFromAmountBufferBps: number;
-    rpcUrls: Partial<Record<string, string>>;
-    routeStatusPollIntervalMs: number;
-    routeStatusTimeoutMs: number;
 }
 export interface LocalWalletBinding {
     account: Account;

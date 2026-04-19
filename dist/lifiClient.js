@@ -54,7 +54,7 @@ export class LifiSdkClient {
                 toTokenAddress: params.toToken,
                 fromAddress: params.fromAddress,
                 toAddress: params.toAddress,
-                fromAmount: '10000000000', //params.fromAmount.toString(),
+                fromAmount: params.fromAmount.toString(),
                 options: {
                     integrator: this.config.integrator,
                     allowSwitchChain: true,

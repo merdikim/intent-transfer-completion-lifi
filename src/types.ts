@@ -107,11 +107,6 @@ export interface BalancePosition {
   formattedAmount: string;
 }
 
-export interface BalancesResult {
-  all: BalancePosition[];
-  filtered: BalancePosition[];
-}
-
 export interface GasPolicyResult {
   minimumReserveRaw: bigint;
   warnings: string[];

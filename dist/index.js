@@ -24,13 +24,12 @@ export async function completeTransferIntent(input) {
         return executeTransferPlan(plan, localWallet);
     }
     const balances = await getWalletBalances(ownerAddress);
-    console.log(balances.filtered);
-    const plan = await planTransfer(resolvedIntent, ownerAddress, balances.filtered, assetBalance);
+    const plan = await planTransfer(resolvedIntent, ownerAddress, balances, assetBalance);
     return executeTransferPlan(plan, localWallet);
 }
-completeTransferIntent({
-    intent: "transfer 0.3 usdc to test.merkim.eth on base"
-}).then(result => console.log(result)).catch(err => console.error(err));
+// completeTransferIntent({
+//   intent: "transfer 0.3 usdc to test.merkim.eth on optimism",
+// }).then(result => console.log(result)).catch(err => console.error(err));
 export const plugin = {
     id: "intent-transfer-completion-lifi",
     name: "Intent Transfer Completion via LI.FI",

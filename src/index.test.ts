@@ -1,0 +1,34 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+
+import plugin, { completeTransferIntent } from "./index.js";
+
+interface ToolInputSchema {
+  required: string[];
+  properties: {
+    intent: { type: string };
+    walletPath: { type: string };
+  };
+}
+
+test("plugin exposes the transfer tool with the expected execute handler", () => {
+  assert.equal(plugin.id, "intent-transfer-completion-lifi");
+  assert.equal(plugin.name, "Intent Transfer Completion via LI.FI");
+  assert.equal(plugin.tools.length, 1);
+
+  const [tool] = plugin.tools;
+  const inputSchema = tool.inputSchema as unknown as ToolInputSchema;
+
+  assert.ok(tool);
+  assert.equal(tool.name, "complete_transfer_intent");
+  assert.equal(tool.execute, completeTransferIntent);
+  assert.deepEqual(inputSchema.required, ["intent"]);
+  assert.equal(inputSchema.properties.intent.type, "string");
+  assert.equal(inputSchema.properties.walletPath.type, "string");
+});
+
+test("default export and named plugin export are the same object", async () => {
+  const module = await import("./index.js");
+
+  assert.equal(module.default, module.plugin);
+});

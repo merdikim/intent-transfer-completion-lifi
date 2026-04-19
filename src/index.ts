@@ -31,13 +31,13 @@ export async function completeTransferIntent(
   }
 
   const balances = await getWalletBalances(ownerAddress);
-  const plan = await planTransfer(resolvedIntent, ownerAddress, balances.filtered, assetBalance)
+  const plan = await planTransfer(resolvedIntent, ownerAddress, balances, assetBalance)
   return executeTransferPlan(plan, localWallet);
 }
 
-completeTransferIntent({
-  intent: "transfer 0.2 usdc to test.merkim.eth on optimism",
-}).then(result => console.log(result)).catch(err => console.error(err));
+// completeTransferIntent({
+//   intent: "transfer 0.3 usdc to test.merkim.eth on optimism",
+// }).then(result => console.log(result)).catch(err => console.error(err));
 
 export const plugin: OpenClawPlugin = {
   id: "intent-transfer-completion-lifi",

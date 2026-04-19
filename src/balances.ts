@@ -9,7 +9,7 @@ import {
 import type { Address, Chain, PublicClient } from "viem";
 import { getSupportedChains, getSupportedTokens, loadConfig } from "./config.js";
 import type { ChainMetadata } from "./types.js";
-import type { AssetRef, BalancePosition, BalancesResult, SupportedToken } from "./types.js";
+import type { AssetRef, BalancePosition, SupportedToken } from "./types.js";
 import { COINS, LIFI_CHAIN_NAME_TO_VIEM_CHAIN } from "./constants.js";
 
 function clientFor(chain: Chain, rpcUrl: string | undefined): PublicClient {
@@ -23,7 +23,7 @@ function clientFor(chain: Chain, rpcUrl: string | undefined): PublicClient {
 
 export async function getWalletBalances(
   ownerAddress: Address
-): Promise<BalancesResult> {
+): Promise<BalancePosition[]> {
   const chains = await getSupportedChains();
 
   const chainBalances = await Promise.allSettled(
@@ -91,10 +91,7 @@ export async function getWalletBalances(
     return [];
   });
 
-  return {
-    all: balances,
-    filtered: balances.filter((balance) => Number(balance.formattedAmount) > 0)
-  }
+  return balances
 }
 
 export async function getAssetBalance(

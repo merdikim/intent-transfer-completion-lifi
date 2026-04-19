@@ -93,8 +93,7 @@ export class LifiSdkClient implements LifiClient {
         fromAmount: params.fromAmount.toString(),
         options: {
           integrator: this.config.integrator,
-          allowSwitchChain: true,
-          slippage: this.config.defaultSlippageBps / 10_000,
+          allowSwitchChain: true
         },
       });
 

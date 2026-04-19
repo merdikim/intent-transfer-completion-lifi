@@ -2,9 +2,9 @@ import { formatUnits } from "viem";
 import { InsufficientFundsError } from "./errors.js";
 import { loadConfig } from "./config.js";
 import { LifiSdkClient } from "./lifiClient.js";
-const BPS_DENOMINATOR = 10000n;
+import { BPS_DENOMINATOR } from "./constants.js";
 export async function planTransfer(intent, ownerAddress, balances, assetBalance) {
-    const shortfallRaw = intent.amountRaw - assetBalance; //intent.amountRaw > assetBalance ? intent.amountRaw - assetBalance : 0n;
+    const shortfallRaw = intent.amountRaw - assetBalance;
     const candidate = await selectBestRouteCandidate(intent, ownerAddress, balances, shortfallRaw);
     return {
         ownerAddress,
@@ -18,6 +18,7 @@ export async function planTransfer(intent, ownerAddress, balances, assetBalance)
     };
 }
 async function selectBestRouteCandidate(intent, ownerAddress, balances, shortfallRaw) {
+    // Filter out balances that are already in the target asset, since those won't be used for routing
     const nonTargetBalances = balances.filter((balance) => balance.token.chainId !== intent.asset.chainId ||
         balance.token.address.toLowerCase() !== intent.asset.address.toLowerCase());
     const config = loadConfig();
@@ -31,7 +32,7 @@ async function selectBestRouteCandidate(intent, ownerAddress, balances, shortfal
     let bestCandidate;
     let bestAmount = 0n;
     //slight buffer to increase chances of route `toAmount` meeting or exceeding `shortfallRaw` after accounting for potential slippage and fees, without being so large as to cause excessive unnecessary transfers
-    const bufferedShortfallRaw = applyBufferBps(shortfallRaw, BigInt(config.routeFromAmountBufferBps));
+    const bufferedShortfallRaw = applyBufferBps(shortfallRaw);
     for (const balance of nonTargetBalances) {
         const fromAmount = balance.rawAmount > bufferedShortfallRaw ? bufferedShortfallRaw : balance.rawAmount;
         const routes = await lifiClient.getRoutes({
@@ -58,7 +59,8 @@ async function selectBestRouteCandidate(intent, ownerAddress, balances, shortfal
     }
     throw new InsufficientFundsError(`Portfolio value is insufficient. Best route would yield ${formatUnits(bestAmount, intent.asset.decimals)} ${intent.asset.symbol}, but ${formatUnits(shortfallRaw, intent.asset.decimals)} ${intent.asset.symbol} is required on ${intent.chain.name}.`);
 }
-function applyBufferBps(amount, bufferBps) {
+function applyBufferBps(amount) {
+    const bufferBps = BigInt(100); // Default to 1% buffer
     if (amount <= 0n || bufferBps <= 0n) {
         return amount;
     }
