@@ -1,6 +1,6 @@
 {
   "name": "intent-transfer-completion-lifi",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "description": "OpenClaw plugin and bundled skill for completing token transfer intents with LI.FI routing.",
   "type": "module",
   "main": "dist/index.js",

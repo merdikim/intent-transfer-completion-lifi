@@ -1,7 +1,7 @@
 {
   "id": "intent-transfer-completion-lifi",
   "name": "Intent Transfer Completion via LI.FI",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "description": "Complete natural-language token transfer intents by sourcing missing funds through LI.FI and then sending the final transfer.",
   "entry": "./dist/index.js",
   "bundledSkills": [

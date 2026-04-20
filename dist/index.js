@@ -33,7 +33,7 @@ export async function completeTransferIntent(input) {
 export const plugin = {
     id: "intent-transfer-completion-lifi",
     name: "Intent Transfer Completion via LI.FI",
-    version: "1.0.0",
+    version: "1.0.3",
     entry: "./dist/index.js",
     bundledSkills: ["./skills/intent_transfer_completion_lifi"],
     configSchema: pluginConfigSchema,
