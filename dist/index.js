@@ -27,31 +27,48 @@ export async function completeTransferIntent(input) {
     const plan = await planTransfer(resolvedIntent, ownerAddress, balances, assetBalance);
     return executeTransferPlan(plan, localWallet);
 }
-// completeTransferIntent({
-//   intent: "transfer 0.3 usdc to test.merkim.eth on optimism",
-// }).then(result => console.log(result)).catch(err => console.error(err));
+const transferTool = {
+    name: "complete_transfer_intent",
+    description: "Complete natural-language token transfer intents by sourcing missing funds through LI.FI and then sending the final transfer.",
+    inputSchema: {
+        type: "object",
+        properties: {
+            intent: { type: "string" },
+            walletPath: { type: "string" }
+        },
+        required: ["intent"]
+    }
+};
+export function register(api) {
+    api.registerTool({
+        name: transferTool.name,
+        description: transferTool.description,
+        parameters: transferTool.inputSchema,
+        async execute(_toolCallId, params) {
+            const result = await completeTransferIntent(params);
+            return {
+                content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+                details: result
+            };
+        }
+    });
+}
 export const plugin = {
     id: "intent-transfer-completion-lifi",
     name: "Intent Transfer Completion via LI.FI",
-    version: "1.0.3",
+    version: "1.0.4",
     entry: "./dist/index.js",
     bundledSkills: ["./skills/intent_transfer_completion_lifi"],
     configSchema: pluginConfigSchema,
     tools: [
         {
-            name: "complete_transfer_intent",
-            description: "Complete natural-language token transfer intents by sourcing missing funds through LI.FI and then sending the final transfer.",
-            inputSchema: {
-                type: "object",
-                properties: {
-                    intent: { type: "string" },
-                    walletPath: { type: "string" }
-                },
-                required: ["intent"]
-            },
+            name: transferTool.name,
+            description: transferTool.description,
+            inputSchema: transferTool.inputSchema,
             execute: completeTransferIntent
         }
-    ]
+    ],
+    register
 };
 export default plugin;
 //# sourceMappingURL=index.js.map

@@ -235,6 +235,20 @@ export interface OpenClawPlugin {
     bundledSkills: string[];
     configSchema: Record<string, unknown>;
     tools: CompleteTransferTool[];
+    register?: (api: {
+        registerTool: (tool: {
+            name: string;
+            description: string;
+            parameters: Record<string, unknown>;
+            execute: (_toolCallId: string, params: Record<string, unknown>) => Promise<{
+                content: Array<{
+                    type: "text";
+                    text: string;
+                }>;
+                details?: unknown;
+            }>;
+        }) => void;
+    }) => void;
 }
 export interface RequestOptions {
     method?: "GET" | "POST";
